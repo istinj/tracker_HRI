@@ -134,11 +134,11 @@ add_executable(tracker_hri_node src/tracker_hri_node.cpp)
 ## same as for the library above
 # add_dependencies(tracker_hri_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-## Specify libraries to link a library or executable target against
-# target_link_libraries(
-# 	# tracker_hri_node
-# 	# ${catkin_LIBRARIES}
-# )
+# Specify libraries to link a library or executable target against
+target_link_libraries(
+	tracker_hri_node
+	${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
