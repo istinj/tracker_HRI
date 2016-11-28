@@ -53,11 +53,13 @@ int main(int argc, char *argv[])
 
 	pMog2_sub = new cv::BackgroundSubtractorMOG();
 
-	// WebCam
-	// ros::Subscriber rgb_sub = n.subscribe("/image_raw", 1, rgbTrackerCB);
+	std::string topic;
+	if (webcam_data_stream)
+		topic = "/image_raw"; // WebCam
+	else
+		topic = "/camera/rgb/image_color"; // BAG
 	
-	// BAG
-	ros::Subscriber rgb_sub = n.subscribe("/camera/rgb/image_color", 1, rgbTrackerCB);
+	ros::Subscriber rgb_sub = n.subscribe(topic, 1, rgbTrackerCB);
 
 	ros::spin();
 	return 0;
