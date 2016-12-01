@@ -24,15 +24,16 @@ using namespace cv;
 // --------------------------------------------------------------- //
 cv::Mat curr_frame_rgb, curr_frame_gray;
 std::vector<bool> flag_vec(2);
-const bool webcam_data_stream = false;
+const bool webcam_data_stream = true;
 
 // Random color generator
 cv::RNG rng(12345);
 
 // Face detector
-cv::CascadeClassifier face_cascade;
-std::vector<cv::Rect> faces_vector;
-string path_to_xml_face = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_frontalface_alt.xml";
+cv::CascadeClassifier face_cascade, body_cascade;
+std::vector<cv::Rect> faces_vector, body_vector;
+std::string path_to_xml_face = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_frontalface_alt.xml";
+std::string path_to_xml_body = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_upperbody.xml";
 
 // Background subtractor
 cv::Ptr<cv::BackgroundSubtractor> pMog2_sub;
@@ -155,6 +156,17 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 		cerr << "Publishing condition" << endl;
 		// system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once");
 	}
+
+	// Body detector
+	out = face_cascade.load(path_to_xml_body);
+	if (!out)
+	{
+		cerr << "ERROR Haar body filter!" << endl;
+		return;
+	}
+	body_cascade.detectMultiScale(curr_frame_gray, body_vector, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30));
+	cout << "body_vector.size() =\t" << body_vector.size() << endl;
+
 
 	cv::namedWindow("RGB Datastream", CV_WINDOW_NORMAL);
 	cv::imshow("RGB Datastream", curr_frame_rgb);
