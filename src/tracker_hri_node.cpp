@@ -13,6 +13,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
+
 //BG SUBTRACTION
 #include <opencv2/video/background_segm.hpp>
 
@@ -22,9 +23,10 @@ using namespace cv;
 // --------------------------------------------------------------- //
 // ----------------------- Declarations -------------------------- //
 // --------------------------------------------------------------- //
+const bool webcam_data_stream = false;
+
 cv::Mat curr_frame_rgb, curr_frame_gray;
 std::vector<bool> flag_vec(2);
-const bool webcam_data_stream = true;
 
 // Random color generator
 cv::RNG rng(12345);
@@ -41,8 +43,13 @@ std::vector<std::vector<cv::Point> > contours;
 std::vector<cv::Vec4i> hierarchy;
 cv::Mat foreg_mask;
 
+// HOG
+std::vector<float> b_detector;
+cv::HOGDescriptor hog_descriptor;
+
 
 void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg);
+void depthTrackerCB(const sensor_msgs::ImageConstPtr& msg);
 
 // --------------------------------------------------------------- //
 // ------------------------- Functions --------------------------- //
@@ -53,14 +60,14 @@ int main(int argc, char *argv[])
 	ros::NodeHandle n;
 
 	pMog2_sub = new cv::BackgroundSubtractorMOG();
+	b_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
+	hog_descriptor.setSVMDetector(b_detector);
 
-	std::string topic;
-	if (webcam_data_stream)
-		topic = "/image_raw"; // WebCam
-	else
-		topic = "/camera/rgb/image_color"; // BAG
+	std::string topic_rgb(argv[1]);
+	std::string topic_depth(argv[2]);
 	
-	ros::Subscriber rgb_sub = n.subscribe(topic, 1, rgbTrackerCB);
+	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, rgbTrackerCB);
+	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, depthTrackerCB);
 
 	ros::spin();
 	return 0;
@@ -73,6 +80,8 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 	cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
 
 	curr_frame_rgb = cv_ptr->image.clone();
+	cv::cvtColor(curr_frame_rgb, curr_frame_gray, COLOR_BGR2GRAY);
+	cv::equalizeHist(curr_frame_gray, curr_frame_gray);
 
 	if (webcam_data_stream)
 	{
@@ -81,7 +90,9 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 		warpAffine(curr_frame_rgb, curr_frame_rgb, rot_mat, curr_frame_rgb.size());
 	}
 
-	// Background subtractor
+	// ********************************************* //
+	// *********** Background subtractor *********** //
+	// ********************************************* //
 	pMog2_sub->operator()(curr_frame_rgb, foreg_mask);
 
 	cv::namedWindow("Foreground mask");
@@ -100,18 +111,18 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 		{
 			std::vector<cv::Point>& cont_ = contours[i];
 			float area = fabs(cv::contourArea(cont_));
-			
 			//! How much big must be the detection
-			if (area > 10000)
+			if (area > 9000 && area < 35000)
 			{
 				cv::approxPolyDP(cont_, contours_poly_vec[i], 3, true);
 				bound_box_vec[i] = cv::boundingRect(contours_poly_vec[i]);
 				cv::drawContours(cont_mask, contours, i, cv::Scalar(80, 180, 80), CV_FILLED, 8, hierarchy);
-
+				cv::rectangle(curr_frame_rgb, bound_box_vec[i].tl(), bound_box_vec[i].br(), cv::Scalar(10,180,50), 6, 8, 0);
+				
 				//! How much closer must be the subject to the robot (WARNING SIGN)
-				if (bound_box_vec[i].tl().y < 220)
+				if (bound_box_vec[i].tl().y < 170)
 				{
-					cv::rectangle(curr_frame_rgb, bound_box_vec[i].tl(), bound_box_vec[i].br(), cv::Scalar(10,180,50), 6, 8, 0);
+					cv::rectangle(curr_frame_rgb, bound_box_vec[i].tl(), bound_box_vec[i].br(), cv::Scalar(220,50,50), 6, 8, 0);
 					flag_vec[0] = true;
 				}
 			}
@@ -122,20 +133,17 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 	cv::imshow("Contours", cont_mask);
 	cv::waitKey(16);
 
-
-	// Face detector
-	//! Load the xml file into the cascade classifier
+	// ********************************************* //
+	// *************** Face detector *************** //
+	// ********************************************* //
 	bool out = face_cascade.load(path_to_xml_face);
 	if (!out)
 	{
 		cerr << "ERROR Haar face filter!" << endl;
 		return;
 	}
-	cv::cvtColor(curr_frame_rgb, curr_frame_gray, COLOR_BGR2GRAY);
-	cv::equalizeHist(curr_frame_gray, curr_frame_gray);
 
-
-	face_cascade.detectMultiScale(curr_frame_gray, faces_vector, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
+	face_cascade.detectMultiScale(curr_frame_gray, faces_vector, 1.5, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
 	if (faces_vector.size() > 0)
 	{
 		flag_vec[1] = true;
@@ -151,24 +159,60 @@ void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
-	if (flag_vec[0] || flag_vec[1])
+	// // ********************************************* //
+	// // ****************** HOG BODY ***************** //
+	// // ********************************************* //
+	// hog_descriptor.detectMultiScale(curr_frame_gray, body_vector, 0, 
+	// 	cv::Size(10,10), cv::Size(40,40), 1.05, 1.3, false);
+	hog_descriptor.detectMultiScale(curr_frame_gray, body_vector, 0.3, 
+		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
+	for (int i = 0; i < body_vector.size(); i++)
 	{
-		cerr << "Publishing condition" << endl;
-		// system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once");
+		cout << "HOG" << endl;
+		cv::rectangle(curr_frame_gray, body_vector[i].tl(), 
+			body_vector[i].br(), cv::Scalar(180,10,10));
 	}
 
-	// Body detector
-	out = face_cascade.load(path_to_xml_body);
-	if (!out)
-	{
-		cerr << "ERROR Haar body filter!" << endl;
-		return;
-	}
-	body_cascade.detectMultiScale(curr_frame_gray, body_vector, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30));
-	cout << "body_vector.size() =\t" << body_vector.size() << endl;
-
+	cv::namedWindow("HOGDescriptor", CV_WINDOW_NORMAL);
+	cv::imshow("HOGDescriptor", curr_frame_gray);
+	cv::waitKey(16);
 
 	cv::namedWindow("RGB Datastream", CV_WINDOW_NORMAL);
 	cv::imshow("RGB Datastream", curr_frame_rgb);
 	cv::waitKey(16);
+
+	if (flag_vec[0] || flag_vec[1])
+	{
+		// cerr << "Publishing condition" << endl;
+		// system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once");
+	}
+}
+
+
+void depthTrackerCB(const sensor_msgs::ImageConstPtr& msg) 
+{
+	float min_range = 0.5f;
+	float max_range = 5.5f;
+	cv_bridge::CvImageConstPtr depth_bridge;
+	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
+
+	cv::Mat depth_image(depth_bridge->image.rows, 
+		depth_bridge->image.cols
+		CV_8UC1);
+
+	for (int i = 0; i < depth_bridge.rows; i++)
+	{
+		// pointer to values -> modify the real values
+		float* Di = depth_bridge.ptr<float>(i);
+		char*  Ii = image.ptr<char>(i);
+
+		for (int j = 0; j < depth_bridge.cols; j++)
+		{
+			Ii = (char) (255* ((Di[j] - min_range)/(max_range - min_range)));
+		}
+	}
+
+	cv::namedWindow("Depth Image", CV_WINDOW_NORMAL);
+	cv::imshow("Depth Image", depth_image);
+	cv::waitKey(15);
 }
