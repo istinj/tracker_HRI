@@ -115,7 +115,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include
-  ${catkin_INCLUDE_DIRS})
+  ${catkin_INCLUDE_DIRS}
+  /home/istin/CATKIN_WSS/HRI/devel/include)
 ## Declare a C++ library
 # add_library(tracker_hri
 #   src/${PROJECT_NAME}/tracker_hri.cpp
