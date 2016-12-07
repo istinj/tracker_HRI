@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <cmath>
 //ROS
 #include <ros/ros.h>
@@ -217,18 +218,18 @@ void depthTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 
 		for (int j = 0; j < depth_bridge->image.cols; j++)
 		{
-			Ii[j] = (char) (255* ((Di[j] - min_range)/(max_range - min_range)));
+			Ii[j] = (char) (255 * ((Di[j] - min_range)/(max_range - min_range)));
 		}
 	}
 
 
 	// HOG PEOPLE DETECTOR
-	hog_descriptor_depth.detectMultiScale(depth_image, body_vector_depth, 0.3,
-		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
-	if (body_vector_depth.size() > 0)
-	{
-		cerr << "Depth HOG" << endl;
-	}
+	// hog_descriptor_depth.detectMultiScale(depth_image, body_vector_depth, 0.3,
+	// 	cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
+	// if (body_vector_depth.size() > 0)
+	// {
+	// 	cerr << "Depth HOG" << endl;
+	// }
 
 	display_image(depth_image, "Depth Image");
 }
