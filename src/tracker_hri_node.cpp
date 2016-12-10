@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <cmath>
+#include "colormod.h"
 //ROS
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
-#include <laser_analysis/LaserObstacle.h>
-#include <laser_analysis/LaserObstacleMap.h>
+#include <geometry_msgs/Twist.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
@@ -21,7 +21,7 @@
 //BG SUBTRACTION
 #include <opencv2/video/background_segm.hpp>
 
-#define FPS 1000/30
+#define FPS (int)1000/30
 using namespace std;
 using namespace cv;
 
@@ -46,7 +46,7 @@ cv::HOGDescriptor hog_descriptor;
 // Callbacks
 void rgbTrackerCB(const sensor_msgs::ImageConstPtr& msg);
 void depthTrackerCB(const sensor_msgs::ImageConstPtr& msg);
-void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg);
+void cmdVelTrackerCB(const geometry_msgs::TwistConstPtr& msg);
 // Utilities
 void display_image(const cv::Mat& image_, const std::string name_);
 
@@ -55,6 +55,14 @@ void display_image(const cv::Mat& image_, const std::string name_);
 // --------------------------------------------------------------- //
 int main(int argc, char *argv[])
 {
+
+	if (argc < 3)
+	{
+		cerr << BOLDYELLOW << "Too few arguments, you must specify two topics!" << RESET << endl;
+		cerr << BOLDYELLOW << "Using default topics for RGB and DEPTH" << RESET << endl << endl;
+		argv[1] = (char*)"/diago/top_camera/rgb/image_raw";
+		argv[2] = (char*)"/diago/top_camera/depth/image_raw";
+	}
 	ros::init(argc, argv, "tracker");
 	ros::NodeHandle n;
 
@@ -75,10 +83,11 @@ int main(int argc, char *argv[])
 
 	std::string topic_rgb(argv[1]);
 	std::string topic_depth(argv[2]);
-	std::string topic_laser = "/diago/scan";
+	std::string topic_vel = "/diago/cmd_vel";
 	
 	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, rgbTrackerCB);
 	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, depthTrackerCB);
+	ros::Subscriber cmd_vel_sub = n.subscribe(topic_vel, 1, cmdVelTrackerCB);
 
 	ros::spin();
 	return 0;
@@ -153,12 +162,10 @@ void depthTrackerCB(const sensor_msgs::ImageConstPtr& msg)
 	display_image(depth_image, "Depth Image");
 }
 
-void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
+void cmdVelTrackerCB(const geometry_msgs::TwistConstPtr& msg)
 {
-	cout << "msg->intensities\t" << msg->intensities[0] << endl;
-	cout << "msg->angle_increment\t" << msg->angle_increment << endl;
-	cout << "msg->range_max\t" << msg->range_max << endl;
-	cout << "msg->range_min\t" << msg->range_min << endl << endl;
+	cout << CYAN << "cmd_vel angular\n" << msg->angular << RESET;
+	cout << RED << "cmd_vel linear\n" << msg->linear << RESET <<  endl;
 }
 
 void display_image(const cv::Mat& image_, const std::string name_)
