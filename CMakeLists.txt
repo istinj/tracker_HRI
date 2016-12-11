@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(tracker_hri)
-set (CMAKE_CXX_STANDARD 14)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -11,7 +10,8 @@ find_package(catkin REQUIRED
 	roscpp
 	sensor_msgs
 	std_msgs)
-
+find_package(Eigen3 REQUIRED)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11")
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -115,7 +115,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include
-  ${catkin_INCLUDE_DIRS})
+  ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR})
 ## Declare a C++ library
 # add_library(tracker_hri
 #   src/${PROJECT_NAME}/tracker_hri.cpp
