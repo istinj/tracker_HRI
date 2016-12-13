@@ -15,6 +15,7 @@
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <tf/transform_listener.h>
+#include <tf/tf.h>
 //OpenCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -37,7 +38,7 @@ bool show_images = false;
 bool obstacle = false;
 
 // Robot pose
-tf::TransformListener *listener=NULL;
+tf::TransformListener *listener = NULL;
 // Random color generator
 cv::RNG rng(12345);
 
@@ -185,14 +186,22 @@ void depthCB(const sensor_msgs::ImageConstPtr& msg)
 
 void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
 {
+	float theta_0 = msg->angle_min;
+	float curr_range, x, y;
+	cout << RED << "thetha_0: " << theta_0 << RESET << endl;
+
 	if(!obstacle)
 		return;
-	cout << msg->ranges.size() << endl;
+	Eigen::Vector3f robot_pose;
+	getRobotPose(robot_pose);
+
+
+
 }
 
 void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
 {
-	cout << msg->y1 << "\t" << msg->y2 << endl;
+//	cout << msg->y1 << "\t" << msg->y2 << endl;
 }
 
 void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
@@ -204,6 +213,8 @@ void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 		cout << "Analysing" << RESET  << endl;
 		obstacle = true;
 	}
+	else
+		obstacle = false;
 
 }
 

@@ -9,7 +9,8 @@ find_package(catkin REQUIRED
 	image_transport
 	roscpp
 	sensor_msgs
-	std_msgs)
+	std_msgs
+	tf)
 find_package(Eigen3 REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=gnu++11")
 ## System dependencies are found with CMake's conventions
