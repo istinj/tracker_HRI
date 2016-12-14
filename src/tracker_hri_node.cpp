@@ -34,8 +34,8 @@ using namespace cv;
 // ----------------------- Declarations -------------------------- //
 // --------------------------------------------------------------- //
 cv::Mat curr_frame_rgb, curr_frame_gray;
-bool show_images = false;
-bool obstacle = false;
+bool show_images = true;
+bool obstacle = true;
 
 // Robot pose
 tf::TransformListener *listener = NULL;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	std::string topic_laser_map = "/diago/laser_obstacle_map";
 	
 //	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, rgbCB);
-//	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, depthCB);
+	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, depthCB);
 	ros::Subscriber laser_scan_sub = n.subscribe(topic_laser_scan, 1, laserScanCB);
 	ros::Subscriber laser_obs_sub = n.subscribe(topic_laser_obs, 1, laserObsCB);
 	ros::Subscriber laser_map_sub = n.subscribe(topic_laser_map, 1, laserMapCB);
@@ -209,7 +209,7 @@ void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
 
 	for(int i = 0; i < msg->ranges.size(); i += delta_angle)
 	{
-		if(msg->ranges[i] < msg->range_min)
+		if(msg->ranges[i] > msg->range_min)
 		{
 			curr_range = msg->ranges[i];
 			temp << curr_range * cos(theta), curr_range * sin(theta);
@@ -227,8 +227,8 @@ void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
 		}
 		theta += msg->angle_increment * delta_angle;
 	}
-	cout << "obstacle_L\n" << obstacle_L << endl;
-	cout << "obstacle_R\n" << obstacle_R << endl << endl;
+	cout << BOLDCYAN << "obstacle_L\n" << obstacle_L << endl;
+	cout << "obstacle_R\n" << obstacle_R << RESET << endl << endl;
 }
 
 void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
@@ -239,13 +239,13 @@ void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
 void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 {
 	Eigen::Vector2f laser_map(msg->mx, msg->my);
-	if(laser_map.norm() > 0)
-	{
-//		cout << YELLOW << "Obstacle detected!" << endl;
-		obstacle = true;
-	}
-	else
-		obstacle = false;
+//	if(laser_map.norm() > 0)
+//	{
+////		cout << YELLOW << "Obstacle detected!" << endl;
+//		obstacle = true;
+//	}
+//	else
+//		obstacle = false;
 
 }
 
@@ -264,6 +264,7 @@ void getRobotPose(Eigen::Vector3f& diago_pose_)
 	double roll, pitch, yaw;
 	tf::StampedTransform T;
 
+	listener->waitForTransform("/map", "/diago/laser_frame", ros::Time(0), ros::Duration(1.0));
 	listener->lookupTransform("/map","/diago/laser_frame", ros::Time(0), T);
 
 	tf::Quaternion q = T.getRotation();
