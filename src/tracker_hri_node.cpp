@@ -60,6 +60,7 @@ void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
 // Utilities
 void display_image(const cv::Mat& image_, const std::string name_);
 void getRobotPose(Eigen::Vector3f& diago_pose_);
+float roundPI2(float a);
 
 // --------------------------------------------------------------- //
 // ------------------------- Functions --------------------------- //
@@ -186,9 +187,16 @@ void depthCB(const sensor_msgs::ImageConstPtr& msg)
 
 void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
 {
-	float theta_0 = msg->angle_min;
+	int delta_angle = 4;
+	bool first=true;
+	float theta = msg->angle_min;
 	float curr_range, x, y;
-	cout << RED << "thetha_0: " << theta_0 << RESET << endl;
+	float x_obs_right, y_obs_right, x_obs_left, y_obs_left;
+	float detection_front_dist = 20.0f;
+	float detection_side_dist = 0.5f;
+	float rmin = detection_front_dist;
+
+	Eigen::Vector2f obstacle_L, obstacle_R, temp;
 
 	if(!obstacle)
 		return;
@@ -196,7 +204,31 @@ void laserScanCB(const sensor_msgs::LaserScanConstPtr& msg)
 	getRobotPose(robot_pose);
 
 
+	float theta_0 = roundPI2((float)robot_pose(2)) - robot_pose(2); // rad
+	theta -= theta_0;
 
+	for(int i = 0; i < msg->ranges.size(); i += delta_angle)
+	{
+		if(msg->ranges[i] < msg->range_min)
+		{
+			curr_range = msg->ranges[i];
+			temp << curr_range * cos(theta), curr_range * sin(theta);
+			if(temp.x() > 0 &&
+					temp.x() < detection_front_dist &&
+					fabs(temp.y()) < detection_side_dist)
+			{
+				if(first)
+				{
+					obstacle_L = temp;
+					first = false;
+				}
+				obstacle_R = temp;
+			}
+		}
+		theta += msg->angle_increment * delta_angle;
+	}
+	cout << "obstacle_L\n" << obstacle_L << endl;
+	cout << "obstacle_R\n" << obstacle_R << endl << endl;
 }
 
 void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
@@ -209,8 +241,7 @@ void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	Eigen::Vector2f laser_map(msg->mx, msg->my);
 	if(laser_map.norm() > 0)
 	{
-		cout << YELLOW << "Obstacle detected!" << endl;
-		cout << "Analysing" << RESET  << endl;
+//		cout << YELLOW << "Obstacle detected!" << endl;
 		obstacle = true;
 	}
 	else
@@ -242,4 +273,22 @@ void getRobotPose(Eigen::Vector3f& diago_pose_)
 			(float)T.getOrigin().y(),
 			(float)yaw;
 	return;
+}
+
+float roundPI2(float a) // round angle to 0, PI/2, -PI/2, PI
+{
+	if ((a >= -M_PI_4 && a <= M_PI_4) || (a >= 7*M_PI_4 && a <= 2*M_PI))
+		return 0;
+
+	else if (a >= M_PI_4 && a <= 3*M_PI_4)
+		return M_PI_2;
+
+	else if ((a >= 3*M_PI_4 && a <= 5*M_PI_4) || (a >= -M_PI && a <= -3*M_PI_4))
+		return M_PI;
+
+	else if ((a >= 5*M_PI_4 && a <= 7*M_PI_4) || (a >= -3*M_PI_4 && a <= -M_PI_4))
+		return -M_PI_2;
+
+	else // should be not possible...
+		return 0;
 }
