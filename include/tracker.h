@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <algorithm>
 #include <cmath>
 //ROS
 #include <ros/ros.h>
@@ -42,6 +43,8 @@ public:
 //	void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg);
 //	void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
 	void getRobotPose(void);
+
+	inline Eigen::Vector2f getLSRanges(void){return Eigen::Vector2f(_range_left, _range_right);}
 
 private:
 	tf::TransformListener *_listener;

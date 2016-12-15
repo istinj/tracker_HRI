@@ -3,14 +3,20 @@
 ### Goal
 1. Il robot ha delle coordinate globali nel mondo (*truth*)
 2. Bag proveniente dalla camera
-3. **Detection** tramite HOG
-4. Pubblicazione di condizione -> **PNP**
-5. **Tracking** tra *robot pose* ed *estimated human pose* (???)
+3. **Detection** di ostacoli generici tramite *laserscan*
+4. **Tracking** tra *robot pose* ed *estimated human pose* (???)
+5. **Analisys** per riconoscere persone tramite *rgb + depth*
+6. Pubblicazione di condizione -> **PNP**
+
 
 ### TODO:
-- Creare il plan
-- Aggiornare launch in *hri_pnp*
-- Registrare le azioni nel *action_server* e tutto quel casotto lì
+- Fare in modo da filtrare le depth in base ai valori ottenuti dal laserscan.
+- Fare un nuovo launch in modo da far partire solo i pacchetti necessari (?????).
+- Modificare il plan (non va bene).
+- Registrare le azioni nel *action_server* - al momento solo dei placeholder.
+
+###### Ricorda
+*LASERSCAN->RANGE* = **METRI** // *DEPTH_IMAGES* = **MILLIMETRI**
 
 
 #### UNDERSTAND AND MODIFY ROS PACKAGE FOR HRI-PNP
