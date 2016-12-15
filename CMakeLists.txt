@@ -129,7 +129,8 @@ include_directories(include
 # add_dependencies(tracker_hri ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(tracker_hri_node src/tracker_hri_node.cpp)
+set(SRCS src/tracker_hri_node.cpp src/tracker.cpp src/utilities.cpp)
+add_executable(tracker_hri_node ${SRCS})
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
