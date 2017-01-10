@@ -73,19 +73,20 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
-	/*
-	// mask
-	float mean_depth = (float)std::min(_range_left*1000,_range_right*1000);
+	// mask - must substitute a dynamic mean_range value, gathered from laserscan (??)
+	// float mean_depth = (float)std::min(_range_left*1000,_range_right*1000);
+	float mean_depth = (float)1600.0;
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
 		{
-			if(depth_bridge->image.at<float>(i,j) < mean_depth - 100 ||
-					depth_bridge->image.at<float>(i,j) < mean_depth + 100)
+			if(depth_bridge->image.at<float>(i,j) < mean_depth - 600 ||
+					depth_bridge->image.at<float>(i,j) > mean_depth + 100)
 				depth_bridge->image.at<float>(i,j) = 0;
 		}
 	}
 	/**/
+
 	// --------------------------------------------------- //
 	// -- CONVERTING THE RAW DATA INTO DISPLAYBLE IMAGE -- //
 	// --------------------------------------------------- //
@@ -121,7 +122,6 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	// --------------------------------------------------- //
 	// -------------------- ANALISYS --------------------- //
 	// --------------------------------------------------- //
-//	cout << depth_bridge->image.at<float>(240, 540) << endl; // millimeter
 }
 
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)

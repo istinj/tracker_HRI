@@ -23,5 +23,5 @@ void displayImage(const cv::Mat& image_, const std::string name_)
 {
 	cv::namedWindow(name_, CV_WINDOW_NORMAL);
 	cv::imshow(name_, image_);
-	cv::waitKey(FPS);
+	cv::waitKey(30);
 }
