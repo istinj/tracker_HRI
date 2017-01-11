@@ -27,7 +27,7 @@ void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
 	float rmin = detection_front_dist;
 
 	Eigen::Vector2f obstacle_L, obstacle_R, temp;
-	getRobotPose();
+//	getRobotPose();
 
 
 	float theta_0 = roundPI2((float)_diago_pose(2)) - _diago_pose(2); // rad
@@ -61,6 +61,21 @@ void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
 //	cout << idx_L << "\t" << idx_R << endl;
 	cout << "ranges[idx_L] = " << msg->ranges[idx_L] << "\t"
 			<< "ranges[idx_R] = " << msg->ranges[idx_R] << endl << endl;
+}
+
+void Tracker::odomCB(const nav_msgs::OdometryConstPtr& msg)
+{
+	Eigen::Quaternionf diago_q(msg->pose.pose.orientation.w, msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z);
+	Eigen::Matrix3f diago_rot = diago_q.toRotationMatrix();
+	float theta = atan2f((float)diago_rot(1,0), (float)diago_rot(0,0));
+	float theta_deg = theta*180.0f/M_PI;
+
+	Eigen::Vector3f diago_pose(msg->pose.pose.position.x, msg->pose.pose.position.y, theta);
+	_diago_pose = diago_pose;
+//	cout << "diago_pose\n "<< GREEN <<
+//			diago_pose.x() << "\t" <<
+//			diago_pose.y() << "\t" <<
+//			diago_pose.z() << RESET << endl;
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -126,7 +141,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 {
-	bool show_images = false;
+	bool show_images = true;
 
 	// Convert from sensor_msg to cv mat
 	cv_bridge::CvImageConstPtr cv_ptr;
@@ -149,7 +164,7 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 //	}
 	if(show_images)
 	{
-		displayImage(curr_frame_gray, "HOGDescriptor");
+//		displayImage(curr_frame_gray, "HOGDescriptor");
 		displayImage(curr_frame_rgb, "RGB Datastream");
 	}
 	// cerr << "Publishing condition" << endl;

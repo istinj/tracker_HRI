@@ -10,6 +10,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 #include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 //#include <laser_analysis/LaserObstacle.h>
@@ -37,6 +38,7 @@ public:
 	Tracker(); // Ctor
 
 	void laserscanCB(const sensor_msgs::LaserScanConstPtr& msg);
+	void odomCB(const nav_msgs::OdometryConstPtr& msg);
 	void depthCB(const sensor_msgs::ImageConstPtr& msg);
 	void rgbCB(const sensor_msgs::ImageConstPtr& msg);
 	//! Placeholders
