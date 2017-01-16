@@ -13,6 +13,10 @@ Tracker::Tracker()
 	_range_right = 0;
 
 	_listener = new tf::TransformListener();
+
+	_hog_descriptor = new cv::HOGDescriptor();
+	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
+	_hog_descriptor->setSVMDetector(_people_detector);
 }
 
 void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
@@ -28,6 +32,7 @@ void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
 
 	Eigen::Vector2f obstacle_L, obstacle_R, temp;
 //	getRobotPose();
+//	cout << BOLDBLUE << _diago_pose << RESET << endl;
 
 
 	float theta_0 = roundPI2((float)_diago_pose(2)) - _diago_pose(2); // rad
@@ -59,8 +64,8 @@ void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
 //	cout << BOLDCYAN << "obstacle_L\n" << obstacle_L << endl;
 //	cout << "obstacle_R\n" << obstacle_R << RESET << endl;
 //	cout << idx_L << "\t" << idx_R << endl;
-	cout << "ranges[idx_L] = " << msg->ranges[idx_L] << "\t"
-			<< "ranges[idx_R] = " << msg->ranges[idx_R] << endl << endl;
+	cout << "ranges[idx_L] = " << msg->ranges[idx_L]*cos(theta) << "\t"
+			<< "ranges[idx_R] = " << msg->ranges[idx_R]*cos(theta) << endl << endl;
 }
 
 void Tracker::odomCB(const nav_msgs::OdometryConstPtr& msg)
@@ -90,7 +95,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 
 	// mask - must substitute a dynamic mean_range value, gathered from laserscan (??)
 	// float mean_depth = (float)std::min(_range_left*1000,_range_right*1000);
-	float mean_depth = (float)1600.0;
+	float mean_depth = (float)1900.0;
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
@@ -131,6 +136,29 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			Ii[j] = (char) (255 * ((Di[j] - min_range)/(max_range - min_range)));
 		}
 	}
+
+	// Find center of the biggest blob
+	std::vector<std::vector<cv::Point> > contour_vec;
+	std::vector<cv::Vec4i> hierarchy;
+	findContours(depth_image.clone(), contour_vec, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	if(contour_vec.size() > 0)
+	{
+		std::vector<std::vector<cv::Point> > contours_poly(contour_vec.size());
+		std::vector<cv::Rect> boundRect_vec(contour_vec.size());
+
+		for(int i = 0; i < contour_vec.size(); i++)
+		{
+			const std::vector<cv::Point>& contour = contour_vec[i];
+			float area = fabs(cv::contourArea(cv::Mat(contour)));
+			if(area > 20000.0f)
+			{
+				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
+				boundRect_vec[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
+				cv::rectangle(depth_image, boundRect_vec[i].tl(), boundRect_vec[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
+			}
+		}
+	}
+
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
 
@@ -142,6 +170,8 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 {
 	bool show_images = true;
+
+	std::vector<cv::Rect> body_vector;
 
 	// Convert from sensor_msg to cv mat
 	cv_bridge::CvImageConstPtr cv_ptr;
@@ -155,16 +185,16 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	// ********************************************* //
 	// ****************** HOG BODY ***************** //
 	// ********************************************* //
-//	hog_descriptor.detectMultiScale(curr_frame_gray, body_vector, 0.3,
-//		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
-//	for (int i = 0; i < body_vector.size(); i++)
-//	{
-//		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
-//			body_vector[i].br(), cv::Scalar(180,10,10));
-//	}
-	if(show_images)
+	_hog_descriptor->detectMultiScale(curr_frame_gray, body_vector, 0.3,
+		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
+	for (int i = 0; i < body_vector.size(); i++)
 	{
-//		displayImage(curr_frame_gray, "HOGDescriptor");
+		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
+			body_vector[i].br(), cv::Scalar(180,10,10));
+	}
+	if(!show_images)
+	{
+		displayImage(curr_frame_gray, "HOGDescriptor");
 		displayImage(curr_frame_rgb, "RGB Datastream");
 	}
 	// cerr << "Publishing condition" << endl;

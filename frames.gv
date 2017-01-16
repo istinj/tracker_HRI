@@ -1,0 +1,9 @@
+digraph G {
+"diago/odom" -> "diago/base_frame"[label="Broadcaster: /cose\nAverage rate: 40.639 Hz\nMost recent transform: 1449847966.368 ( 34733666.825 sec old)\nBuffer length: 4.921 sec\n"];
+"map" -> "diago/odom"[label="Broadcaster: /thin_localizer_node\nAverage rate: 40.368 Hz\nMost recent transform: 1449847966.339 ( 34733666.854 sec old)\nBuffer length: 4.954 sec\n"];
+"diago/base_frame" -> "diago/laser_frame"[label="Broadcaster: /cose\nAverage rate: 40.639 Hz\nMost recent transform: 1449847966.368 ( 34733666.825 sec old)\nBuffer length: 4.921 sec\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1484581633.193"[ shape=plaintext ] ;
+ }->"map";
+}

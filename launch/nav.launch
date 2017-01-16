@@ -1,0 +1,55 @@
+<launch>
+	<arg name="robot_name" default="diago"/>
+	<arg name="map_name" default="DIS_first_floor" />
+	<arg name="diago_tranforms_name" default="diago_transforms" />
+	<arg name="initial_pose_x" default="12.0" />
+	<arg name="initial_pose_y" default="2.0" />
+	<arg name="initial_pose_a" default="0.0" />
+	<arg name="base_frame" default="base_frame" />
+	<arg name="laser_topic" default="/diago/scan"/>
+	<arg name="laser_frame" default="laser_frame"/>
+
+	<!-- <node name="stageros" pkg="stage_ros" type="stageros" args="/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/stage_environments/maps/AUTOGEN_DIS_first_floor_diago.world" output="screen" required="true" /> -->
+
+	<!-- map_server -->
+	<node pkg="map_server" type="map_server" name="map_server" args="$(find stage_environments)/maps/$(arg map_name).yaml" respawn="false" >
+		<param name="frame_id" value="/map" />
+	</node>
+
+	<!-- Thin state publisher -->
+	<node name="thin_state_pub" pkg="thin_state_publisher" type="thin_state_publisher_node" args="$(find tracker_hri)/misc/$(arg diago_tranforms_name).txt" output="screen">
+		<param name="odom_topic" value="$(arg robot_name)/odom"/>
+		<param name="base_link_frame_id" value="/$(arg robot_name)/base_frame"/>
+		<param name="odom_frame_id" value="$(arg robot_name)/odom"/>
+	</node>
+
+	<!-- Thin Localizer -->
+	<node name="thin_localizer" pkg="thin_navigation" type="thin_localizer_node" output="screen">
+<!-- 		<remap from="static_map" to="/static_map" /> -->
+		<param name="particles" type="int" value="5000"/>
+		<param name="laser_topic" value="$(arg robot_name)/scan"/>
+		<param name="base_frame_id" value="/$(arg robot_name)/base_frame"/>
+		<param name="odom_frame_id" value="/$(arg robot_name)/odom"/>
+		<param name="global_frame_id" value="/map"/> <!--common map frame for all robots -->
+		<!-- Set initial pose -->
+		<param name="initial_pose_x" value="$(arg initial_pose_x)" />
+		<param name="initial_pose_y" value="$(arg initial_pose_y)" />
+		<param name="initial_pose_a" value="$(arg initial_pose_a)" />
+		<param name="initial_cov_xx" value="0.25" />
+		<param name="initial_cov_yy" value="0.25" />
+		<param name="initial_cov_aa" value="0.25" />
+	</node>  
+
+	<!-- Thin Planner -->
+	<node pkg="thin_navigation" type="thin_planner_node" name="thin_planner" output="screen">
+	  <param name="max_range" value="10.0"/>
+	  <param name="max_tv" value="1.0"/>
+	  <param name="max_rv" value="1.0"/>
+	  <param name="global_frame_id" value="/map"/>
+	  <param name="base_frame_id" value="/$(arg robot_name)/base_frame"/>
+	  <param name="laser_topic" value="$(arg robot_name)/scan"/>
+	  <param name="command_vel_topic" value="$(arg robot_name)/cmd_vel"/>
+	  <param name="robot_radius" value="0.25"/>
+	  <param name="distance_threshold" value="2.0"/>
+	</node>
+</launch>

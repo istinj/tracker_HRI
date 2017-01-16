@@ -42,10 +42,10 @@ int main(int argc, char *argv[])
 	ros::init(argc, argv, "tracker");
 	ros::NodeHandle n;
 
-	b_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
-	hog_descriptor.setSVMDetector(b_detector);
+//	b_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
+//	hog_descriptor.setSVMDetector(b_detector);
 
-	listener = new tf::TransformListener();
+//	listener = new tf::TransformListener();
 
 	Tracker tracker;
 
@@ -68,10 +68,10 @@ int main(int argc, char *argv[])
 	std::string topic_laser_map = "/diago/laser_obstacle_map";
 	std::string topic_odom = "/diago/odom";
 	
+	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, &Tracker::depthCB, &tracker);
 	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, &Tracker::rgbCB, &tracker);
-//	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, &Tracker::depthCB, &tracker);
-	ros::Subscriber odom_sub = n.subscribe(topic_odom, 1, &Tracker::odomCB, &tracker);
-	ros::Subscriber laser_scan_sub = n.subscribe(topic_laser_scan, 1, &Tracker::laserscanCB, &tracker);
+//	ros::Subscriber odom_sub = n.subscribe(topic_odom, 1, &Tracker::odomCB, &tracker);
+//	ros::Subscriber laser_scan_sub = n.subscribe(topic_laser_scan, 1, &Tracker::laserscanCB, &tracker);
 //	ros::Subscriber laser_obs_sub = n.subscribe(topic_laser_obs, 1, laserObsCB);
 //	ros::Subscriber laser_map_sub = n.subscribe(topic_laser_map, 1, laserMapCB);
 

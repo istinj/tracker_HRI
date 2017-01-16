@@ -50,6 +50,8 @@ public:
 
 private:
 	tf::TransformListener *_listener;
+	cv::HOGDescriptor *_hog_descriptor;
+	std::vector<float> _people_detector;
 
 	Eigen::Vector3f _obstacle_left;
 	Eigen::Vector3f _obstacle_right;
