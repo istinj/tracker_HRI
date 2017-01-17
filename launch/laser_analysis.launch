@@ -1,0 +1,10 @@
+<launch>
+	<node pkg="laser_analysis" name="laserobstacle" type="laserobstacle" args="-gui"  output="screen">
+		<remap from="scan" to="/diago/scan" />
+		<param name="laser_frame_id" value="/diago/laser_frame" />
+		<param name="obstacle_margin_x_min" value="0" />
+		<param name="obstacle_margin_x_max" value="6" />
+		<param name="obstacle_margin_y_min" value="-1.5" />
+		<param name="obstacle_margin_y_max" value="1.5" />
+	</node>
+</launch>

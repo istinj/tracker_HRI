@@ -30,22 +30,8 @@ cv::HOGDescriptor hog_descriptor;
 // --------------------------------------------------------------- //
 int main(int argc, char *argv[])
 {
-
-	if (argc < 3)
-	{
-		cerr << BOLDYELLOW << "If you want to change topic, write them as arguments." << endl;
-		cerr << BOLDYELLOW << "Now using default topics for RGB and DEPTH" << RESET << endl << endl;
-		argv[1] = (char*)"/diago/top_camera/rgb/image_raw";
-		argv[2] = (char*)"/diago/top_camera/depth/image_raw";
-		argv[3] = (char*)"/diago/scan";
-	}
 	ros::init(argc, argv, "tracker");
 	ros::NodeHandle n;
-
-//	b_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
-//	hog_descriptor.setSVMDetector(b_detector);
-
-//	listener = new tf::TransformListener();
 
 	Tracker tracker;
 
@@ -58,22 +44,24 @@ int main(int argc, char *argv[])
 	 * /diago/top_camera/depth/image_raw -> sensor_msgs/Image
 	 * /diago/top_camera/rgb/camera_info -> sensor_msgs/CameraInfo
 	 * /diago/top_camera/rgb/image_raw -> sensor_msgs/Image
-	 *
+	 * OTHER TOPICS
+	 * /localizer_ranges -> thin_navigation/LocalizerRanges
+	 * /laser_obstacle -> laser_analysis/LaserObstacle
+	 * /laser_obstacle_map -> laser_analysis/LaserObstacleMap
 	 *//**/
 
-	std::string topic_rgb(argv[1]);
-	std::string topic_depth(argv[2]);
-	std::string topic_laser_scan(argv[3]);
-	std::string topic_laser_obs = "/diago/laser_obstacle";
-	std::string topic_laser_map = "/diago/laser_obstacle_map";
+	std::string topic_rgb = "/diago/top_camera/rgb/image_raw";
+	std::string topic_depth = "/diago/top_camera/depth/image_raw";
+	std::string topic_laser_scan = "/diago/scan";
 	std::string topic_odom = "/diago/odom";
+	std::string topic_laser_obs = "/diago/laser_obstacle";
+	std::string topic_laser_obs_map = "/laser_obstacle_map";
 	
 	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, &Tracker::depthCB, &tracker);
 	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, &Tracker::rgbCB, &tracker);
-//	ros::Subscriber odom_sub = n.subscribe(topic_odom, 1, &Tracker::odomCB, &tracker);
-//	ros::Subscriber laser_scan_sub = n.subscribe(topic_laser_scan, 1, &Tracker::laserscanCB, &tracker);
-//	ros::Subscriber laser_obs_sub = n.subscribe(topic_laser_obs, 1, laserObsCB);
-//	ros::Subscriber laser_map_sub = n.subscribe(topic_laser_map, 1, laserMapCB);
+//	ros::Subscriber laser_obs_sub = n.subscribe(topic_laser_obs, 1, &Tracker::laserObsCB, &tracker);
+	ros::Subscriber laser_obs_map_sub = n.subscribe(topic_laser_obs_map, 1, &Tracker::laserObsMapCB, &tracker);
+
 
 	ros::spin();
 	return 0;

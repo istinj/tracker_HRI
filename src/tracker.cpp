@@ -5,82 +5,16 @@ using namespace std;
 Tracker::Tracker()
 {
 	_obstacle = false;
-	_obstacle_left.setZero();
-	_obstacle_right.setZero();
 	_diago_pose.setZero();
-
-	_range_left = 0;
-	_range_right = 0;
+	_obstacle_pos.setZero();
+	_mean_distance = 0;
+	_prev_mean_distance = 0;
 
 	_listener = new tf::TransformListener();
 
 	_hog_descriptor = new cv::HOGDescriptor();
 	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
 	_hog_descriptor->setSVMDetector(_people_detector);
-}
-
-void Tracker::laserscanCB(const sensor_msgs::LaserScanConstPtr& msg)
-{
-	int delta_angle = 4;
-	bool first=true;
-	float theta = msg->angle_min;
-	float curr_range, x, y;
-	float x_obs_right, y_obs_right, x_obs_left, y_obs_left;
-	float detection_front_dist = 20.0f;
-	float detection_side_dist = 0.5f;
-	float rmin = detection_front_dist;
-
-	Eigen::Vector2f obstacle_L, obstacle_R, temp;
-//	getRobotPose();
-//	cout << BOLDBLUE << _diago_pose << RESET << endl;
-
-
-	float theta_0 = roundPI2((float)_diago_pose(2)) - _diago_pose(2); // rad
-	theta -= theta_0;
-	int idx_L = 0, idx_R = 0;
-
-	for(int i = 0; i < msg->ranges.size(); i += delta_angle)
-	{
-		if(msg->ranges[i] > msg->range_min)
-		{
-			curr_range = msg->ranges[i];
-			temp << curr_range * cos(theta), curr_range * sin(theta);
-			if(temp.x() > 0 &&
-					temp.x() < detection_front_dist &&
-					fabs(temp.y()) < detection_side_dist)
-			{
-				if(first)
-				{
-					obstacle_L = temp;
-					idx_L = i;
-					first = false;
-				}
-				obstacle_R = temp;
-				idx_R = i;
-			}
-		}
-		theta += msg->angle_increment * delta_angle;
-	}
-//	cout << BOLDCYAN << "obstacle_L\n" << obstacle_L << endl;
-//	cout << "obstacle_R\n" << obstacle_R << RESET << endl;
-//	cout << idx_L << "\t" << idx_R << endl;
-	cout << "ranges[idx_L] = " << msg->ranges[idx_L]*cos(theta) << "\t"
-			<< "ranges[idx_R] = " << msg->ranges[idx_R]*cos(theta) << endl << endl;
-}
-
-void Tracker::odomCB(const nav_msgs::OdometryConstPtr& msg)
-{
-	Eigen::Quaternionf diago_q(msg->pose.pose.orientation.w, msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z);
-	Eigen::Matrix3f diago_rot = diago_q.toRotationMatrix();
-	float theta = atan2f((float)diago_rot(1,0), (float)diago_rot(0,0));
-	float theta_deg = theta*180.0f/M_PI;
-
-	Eigen::Vector3f diago_pose(msg->pose.pose.position.x, msg->pose.pose.position.y, theta);
-	_diago_pose = diago_pose;
-//	cout << "diago_pose\n "<< GREEN <<
-//			diago_pose.x() << "\t" <<
-//			diago_pose.y() << "\t" <<
-//			diago_pose.z() << RESET << endl;
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -90,12 +24,14 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	float max_range = 0.1f;
 	double min, max;
 
+	_roi_vector.clear();
+
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
 	// mask - must substitute a dynamic mean_range value, gathered from laserscan (??)
-	// float mean_depth = (float)std::min(_range_left*1000,_range_right*1000);
-	float mean_depth = (float)1900.0;
+//	float mean_depth = (float)1900.0;
+	float mean_depth = _mean_distance;
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
@@ -105,8 +41,6 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 				depth_bridge->image.at<float>(i,j) = 0;
 		}
 	}
-	/**/
-
 	// --------------------------------------------------- //
 	// -- CONVERTING THE RAW DATA INTO DISPLAYBLE IMAGE -- //
 	// --------------------------------------------------- //
@@ -154,17 +88,15 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			{
 				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
 				boundRect_vec[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
+				_roi_vector.push_back(boundRect_vec[i]);
 				cv::rectangle(depth_image, boundRect_vec[i].tl(), boundRect_vec[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
 			}
 		}
 	}
+	cout << _roi_vector.size() << endl;
 
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
-
-	// --------------------------------------------------- //
-	// -------------------- ANALISYS --------------------- //
-	// --------------------------------------------------- //
 }
 
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
@@ -172,6 +104,7 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	bool show_images = true;
 
 	std::vector<cv::Rect> body_vector;
+	std::vector<std::vector<cv::Point>> detected_point_vector;
 
 	// Convert from sensor_msg to cv mat
 	cv_bridge::CvImageConstPtr cv_ptr;
@@ -185,14 +118,27 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	// ********************************************* //
 	// ****************** HOG BODY ***************** //
 	// ********************************************* //
-	_hog_descriptor->detectMultiScale(curr_frame_gray, body_vector, 0.3,
-		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
-	for (int i = 0; i < body_vector.size(); i++)
-	{
-		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
-			body_vector[i].br(), cv::Scalar(180,10,10));
-	}
-	if(!show_images)
+	// Multiscale
+//	_hog_descriptor->detectMultiScale(curr_frame_gray, body_vector, 0.3,
+//		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
+//	for (int i = 0; i < body_vector.size(); i++)
+//	{
+//		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
+//			body_vector[i].br(), cv::Scalar(180,10,10));
+//	}
+
+	for(int i = 0; i < _roi_vector.size(); i++)
+		_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), detected_point_vector[i]);
+	//TODO: dentro il for fare il pushback dei detected_point_vector nello std::vector<std::vector<cv::Points>>
+
+//	if(_roi_vector.size() > 0)
+//	{
+//		cout << "size " << _roi_vector.size() << endl;
+//		for(int j = 0; j < _roi_vector.size(); j++)
+//			cv::circle(curr_frame_gray, _roi_vector[j].tl(), 5 ,cv::Scalar(255,0,0));
+//	}
+
+	if(show_images)
 	{
 		displayImage(curr_frame_gray, "HOGDescriptor");
 		displayImage(curr_frame_rgb, "RGB Datastream");
@@ -201,13 +147,43 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	// system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once");
 }
 
+void Tracker::laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
+{
+	return;
+}
+
+void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
+{
+	_obstacle_pos << msg->mx, msg->my;
+	cout << BOLDCYAN << "Mean point:  " << _obstacle_pos.x() << " " << _obstacle_pos.y() << RESET << endl;
+	getRobotPose();
+	cout << BOLDGREEN << "Diago pose:  " <<
+			_diago_pose.x() << " " <<
+			_diago_pose.y() << " " <<
+			_diago_pose.z() << RESET << endl;
+
+	Eigen::Vector2f temp;
+	float mean_distance;
+	temp = _obstacle_pos + _diago_pose.block<2,1>(0,0);
+
+	mean_distance = sqrtf(powf(temp.x() - _diago_pose.x(), 2.0f) +
+			powf(temp.y() - _diago_pose.y(), 2.0f));
+	_mean_distance = mean_distance * 1000.0f;
+
+	if(_mean_distance == 0.0f)
+		_mean_distance = _prev_mean_distance;
+	_prev_mean_distance = _mean_distance;
+
+	cout << BOLDYELLOW << "Mean distance = " << mean_distance << RESET << endl;
+	return;
+}
 
 void Tracker::getRobotPose(void)
 {
 	double roll, pitch, yaw;
 	tf::StampedTransform T;
 
-	_listener->waitForTransform("/map", "/diago/laser_frame", ros::Time(0), ros::Duration(1.0));
+	_listener->waitForTransform("/map", "/diago/laser_frame", ros::Time(0), ros::Duration(2.0));
 	_listener->lookupTransform("/map","/diago/laser_frame", ros::Time(0), T);
 
 	tf::Quaternion q = T.getRotation();

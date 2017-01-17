@@ -13,8 +13,8 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
-//#include <laser_analysis/LaserObstacle.h>
-//#include <laser_analysis/LaserObstacleMap.h>
+#include <laser_analysis/LaserObstacle.h>
+#include <laser_analysis/LaserObstacleMap.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <tf/transform_listener.h>
@@ -37,28 +37,21 @@ public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 	Tracker(); // Ctor
 
-	void laserscanCB(const sensor_msgs::LaserScanConstPtr& msg);
-	void odomCB(const nav_msgs::OdometryConstPtr& msg);
 	void depthCB(const sensor_msgs::ImageConstPtr& msg);
 	void rgbCB(const sensor_msgs::ImageConstPtr& msg);
-	//! Placeholders
-//	void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg);
-//	void laserMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
+	void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg);
+	void laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
 	void getRobotPose(void);
-
-	inline Eigen::Vector2f getLSRanges(void){return Eigen::Vector2f(_range_left, _range_right);}
 
 private:
 	tf::TransformListener *_listener;
 	cv::HOGDescriptor *_hog_descriptor;
 	std::vector<float> _people_detector;
+	std::vector<cv::Rect> _roi_vector;
 
-	Eigen::Vector3f _obstacle_left;
-	Eigen::Vector3f _obstacle_right;
 	Eigen::Vector3f _diago_pose;
-
-	float _range_left;
-	float _range_right;
+	Eigen::Vector2f _obstacle_pos;
+	float _mean_distance, _prev_mean_distance;
 
 	bool _obstacle;
 
