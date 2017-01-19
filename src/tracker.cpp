@@ -78,7 +78,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	if(contour_vec.size() > 0)
 	{
 		std::vector<std::vector<cv::Point> > contours_poly(contour_vec.size());
-		std::vector<cv::Rect> boundRect_vec(contour_vec.size());
+		std::vector<cv::Rect> bound_rect_vect(contour_vec.size());
 
 		for(int i = 0; i < contour_vec.size(); i++)
 		{
@@ -87,14 +87,15 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			if(area > 20000.0f)
 			{
 				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
-				boundRect_vec[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
-				_roi_vector.push_back(boundRect_vec[i]);
-				cv::rectangle(depth_image, boundRect_vec[i].tl(), boundRect_vec[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
+				bound_rect_vect[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
+				if(bound_rect_vect[i].width < bound_rect_vect[i].height)
+				{
+					_roi_vector.push_back(bound_rect_vect[i]);
+					cv::rectangle(depth_image, bound_rect_vect[i].tl(), bound_rect_vect[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
+				}
 			}
 		}
 	}
-	cout << _roi_vector.size() << endl;
-
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
 }
@@ -103,8 +104,10 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 {
 	bool show_images = true;
 
-	std::vector<cv::Rect> body_vector;
+	std::vector<cv::Rect> detected_rect_vector;
+	std::vector<std::vector<cv::Rect>> detected_rect_super_vector;
 	std::vector<std::vector<cv::Point>> detected_point_vector;
+	std::vector<cv::Point> temp_vector;
 
 	// Convert from sensor_msg to cv mat
 	cv_bridge::CvImageConstPtr cv_ptr;
@@ -127,17 +130,60 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 //			body_vector[i].br(), cv::Scalar(180,10,10));
 //	}
 
-	for(int i = 0; i < _roi_vector.size(); i++)
-		_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), detected_point_vector[i]);
-	//TODO: dentro il for fare il pushback dei detected_point_vector nello std::vector<std::vector<cv::Points>>
 
-//	if(_roi_vector.size() > 0)
-//	{
-//		cout << "size " << _roi_vector.size() << endl;
-//		for(int j = 0; j < _roi_vector.size(); j++)
-//			cv::circle(curr_frame_gray, _roi_vector[j].tl(), 5 ,cv::Scalar(255,0,0));
-//	}
+	if(_roi_vector.size() > 0)
+	{
+		if(!show_images)
+		{
+			for(int i = 0; i < _roi_vector.size(); i++)
+			{
+				std::string window_name = "rgb_" + std::to_string(i);
+				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
+			}
+		}
 
+//		//! How to make it work single scale?
+//		for(int i = 0; i < _roi_vector.size(); i++)
+//		{
+//			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
+//			cout << RED << temp_vector.size() << RESET << endl;
+//			detected_point_vector.push_back(temp_vector);
+//			temp_vector.clear();
+//		}
+
+
+		for(int j = 0; j < _roi_vector.size(); j++)
+		{
+			cv::Point roi_center((_roi_vector[j].tl().x + _roi_vector[j].width)/2,(_roi_vector[j].tl().y + _roi_vector[j].height)/2);
+			cv::circle(curr_frame_rgb, roi_center, 5 ,cv::Scalar(37,25,168), -1);
+		}
+
+		for(int i = 0; i < _roi_vector.size(); i++)
+		{
+			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
+					0.0, cv::Size(8,8), cv::Size(32,32), 1.2, 2);
+			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
+			detected_rect_super_vector.push_back(detected_rect_vector);
+		}
+	}
+	else
+	{
+		temp_vector.clear();
+		detected_point_vector.clear();
+		detected_rect_vector.clear();
+		detected_rect_super_vector.clear();
+	}
+
+/*
+	// Display
+	for(int i = 0; i < detected_rect_super_vector.size(); i++)
+	{
+		for(int j = 0; j < detected_rect_super_vector[i].size(); j++)
+		{
+			cv::rectangle(curr_frame_rgb, detected_rect_super_vector[i][j], cv::Scalar(168,25 + (j*10),37), 3, CV_AA, 0);
+		}
+	}
+/**/
 	if(show_images)
 	{
 		displayImage(curr_frame_gray, "HOGDescriptor");

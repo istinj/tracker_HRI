@@ -25,6 +25,10 @@
 									<listOptionValue builtIn="false" value="/opt/ros/indigo/include"/>
 									<listOptionValue builtIn="false" value="/home/istin/CATKIN_WSS/HRI/devel/include"/>
 								</option>
+								<option id="gnu.cpp.compiler.option.preprocessor.def.1782138451" superClass="gnu.cpp.compiler.option.preprocessor.def" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__cplusplus=201103L"/>
+									<listOptionValue builtIn="false" value="__GXX_EXPERIMENTAL_CXX0X__"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1265087911" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.1518243513" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">

@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <algorithm>
 #include <cmath>
+#include <string.h>
 //ROS
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
