@@ -29,8 +29,6 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
-	// mask - must substitute a dynamic mean_range value, gathered from laserscan (??)
-//	float mean_depth = (float)1900.0;
 	float mean_depth = _mean_distance;
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
@@ -71,7 +69,6 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
-	// Find center of the biggest blob
 	std::vector<std::vector<cv::Point> > contour_vec;
 	std::vector<cv::Vec4i> hierarchy;
 	findContours(depth_image.clone(), contour_vec, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -84,7 +81,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		{
 			const std::vector<cv::Point>& contour = contour_vec[i];
 			float area = fabs(cv::contourArea(cv::Mat(contour)));
-			if(area > 20000.0f)
+			if(area > 11000.0f)
 			{
 				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
 				bound_rect_vect[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
@@ -154,16 +151,18 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 
 		for(int j = 0; j < _roi_vector.size(); j++)
 		{
-			cv::Point roi_center((_roi_vector[j].tl().x + _roi_vector[j].width)/2,(_roi_vector[j].tl().y + _roi_vector[j].height)/2);
-			cv::circle(curr_frame_rgb, roi_center, 5 ,cv::Scalar(37,25,168), -1);
+			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
+			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
 		}
 
+		//! TODO: Try another bag; try haar; try contact the prof.
 		for(int i = 0; i < _roi_vector.size(); i++)
 		{
 			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					0.0, cv::Size(8,8), cv::Size(32,32), 1.2, 2);
+					0.0, cv::Size(8,8), cv::Size(32,32), 1.1, 2);
 			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
 			detected_rect_super_vector.push_back(detected_rect_vector);
+			detected_rect_vector.clear();
 		}
 	}
 	else

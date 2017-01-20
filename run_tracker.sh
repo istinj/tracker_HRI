@@ -13,8 +13,9 @@ xterm -e 'rosrun thin_state_publisher thin_state_publisher_node -odom_topic /dia
 sleep 3
 
 # thin_localizer
-# xterm -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan' &
-xterm -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=2 _initial_pose_y:=30 _initial_pose_a:=4.71' &
+# xterm -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan' & # no initial position -> localization
+# xterm -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=2 _initial_pose_y:=18 _initial_pose_a:=4.71' & # 1st gen bag
+xterm -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=1.1 _initial_pose_y:=4.1 _initial_pose_a:=1.57' & # nav gen bag
 sleep 3
 
 # rviz
@@ -36,6 +37,10 @@ xterm -e 'rosrun tracker_hri tracker_hri_node; read' &
 sleep 3
 
 # bag
-xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag' &
-# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag -l' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_2016_3_people_short_approach.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_3_peolple.bag' &
+xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_3_people_front_smooth_approach.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_4_peolple_front2.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_4_people_front.bag' &
 sleep 1
