@@ -19,7 +19,8 @@ cv::RNG rng(12345);
 // Face detector
 cv::CascadeClassifier face_cascade, body_cascade;
 std::vector<cv::Rect> faces_vector, body_vector;
-std::string path_to_xml_face = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_frontalface_alt.xml";
+std::string path_haar_face = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_frontalface_alt.xml";
+std::string path_haar_upperbody = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_upperbody.xml";
 
 // HOG
 std::vector<float> b_detector;

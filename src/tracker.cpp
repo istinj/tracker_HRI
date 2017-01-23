@@ -15,6 +15,9 @@ Tracker::Tracker()
 	_hog_descriptor = new cv::HOGDescriptor();
 	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
 	_hog_descriptor->setSVMDetector(_people_detector);
+
+	_haar_detector = new cv::CascadeClassifier();
+	_haar_detector->load(_path_haar_upperbody);
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -126,10 +129,59 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 //		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
 //			body_vector[i].br(), cv::Scalar(180,10,10));
 //	}
+//
+//
+//	if(_roi_vector.size() > 0)
+//	{
+//		if(!show_images)
+//		{
+//			for(int i = 0; i < _roi_vector.size(); i++)
+//			{
+//				std::string window_name = "rgb_" + std::to_string(i);
+//				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
+//			}
+//		}
+//
+////		//! How to make it work single scale?
+////		for(int i = 0; i < _roi_vector.size(); i++)
+////		{
+////			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
+////			cout << RED << temp_vector.size() << RESET << endl;
+////			detected_point_vector.push_back(temp_vector);
+////			temp_vector.clear();
+////		}
+//
+//
+//		for(int j = 0; j < _roi_vector.size(); j++)
+//		{
+//			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
+//			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
+//		}
+//
+//		//! TODO: Try another bag; try haar; try contact the prof.
+//		for(int i = 0; i < _roi_vector.size(); i++)
+//		{
+//			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
+//					0.0, cv::Size(8,8), cv::Size(32,32), 1.1, 2);
+//			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
+//			detected_rect_super_vector.push_back(detected_rect_vector);
+//			detected_rect_vector.clear();
+//		}
+//	}
+//	else
+//	{
+//		temp_vector.clear();
+//		detected_point_vector.clear();
+//		detected_rect_vector.clear();
+//		detected_rect_super_vector.clear();
+//	}
 
-
+	// ********************************************* //
+	// ************** HAAR UPPER-BODY ************** //
+	// ********************************************* //
 	if(_roi_vector.size() > 0)
 	{
+		//! Show ROIs - just for debug
 		if(!show_images)
 		{
 			for(int i = 0; i < _roi_vector.size(); i++)
@@ -138,51 +190,32 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
 			}
 		}
-
-//		//! How to make it work single scale?
-//		for(int i = 0; i < _roi_vector.size(); i++)
-//		{
-//			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
-//			cout << RED << temp_vector.size() << RESET << endl;
-//			detected_point_vector.push_back(temp_vector);
-//			temp_vector.clear();
-//		}
-
-
-		for(int j = 0; j < _roi_vector.size(); j++)
-		{
-			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
-			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
-		}
-
-		//! TODO: Try another bag; try haar; try contact the prof.
 		for(int i = 0; i < _roi_vector.size(); i++)
 		{
-			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					0.0, cv::Size(8,8), cv::Size(32,32), 1.1, 2);
-			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
-			detected_rect_super_vector.push_back(detected_rect_vector);
-			detected_rect_vector.clear();
+			//! Draw a circle in the center of the current ROI - red
+			cv::Point roi_center(_roi_vector[i].tl().x + (_roi_vector[i].width/2),
+					_roi_vector[i].tl().y + (_roi_vector[i].height/2));
+			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
+
+			//! Detect people using haar_upper_body detector in each ROI
+			_haar_detector->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
+					1.1, 2, 0|CV_HAAR_SCALE_IMAGE, cv::Size(30, 30));
+
+			cout << "Haar detection size: " << detected_rect_vector.size() << endl;
+
+			if(detected_rect_vector.size() > 0)
+			{
+				for(int j = 0; j < detected_rect_vector.size(); j++)
+				{
+					cv::Point person_center(detected_rect_vector[j].tl().x + (detected_rect_vector[j].width/2),
+							detected_rect_vector[j].tl().y + (detected_rect_vector[j].height/2));
+					cv::circle(curr_frame_rgb, person_center, 10, cv::Scalar(37,168,25), -1);
+				}
+			}
 		}
-	}
-	else
-	{
-		temp_vector.clear();
-		detected_point_vector.clear();
-		detected_rect_vector.clear();
-		detected_rect_super_vector.clear();
 	}
 
-/*
-	// Display
-	for(int i = 0; i < detected_rect_super_vector.size(); i++)
-	{
-		for(int j = 0; j < detected_rect_super_vector[i].size(); j++)
-		{
-			cv::rectangle(curr_frame_rgb, detected_rect_super_vector[i][j], cv::Scalar(168,25 + (j*10),37), 3, CV_AA, 0);
-		}
-	}
-/**/
+
 	if(show_images)
 	{
 		displayImage(curr_frame_gray, "HOGDescriptor");
