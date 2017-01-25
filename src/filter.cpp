@@ -1,22 +1,31 @@
 #include "filter.h"
 
-ParticleFilter::ParticleFilter()
+KalmanFilter::KalmanFilter()
 {
-	_image_height = 480;
-	_image_width = 640;
-	_num_particles = 500;
+	_deltaT = 1/20;
+	_transition_model <<
+			1, 0, _deltaT, 0,
+			0, 1, 0, _deltaT,
+			0, 0, 1, 0,
+			0, 0, 0, 1;
+	_obs_model <<
+			1, 0, 0, 0,
+			0, 1, 0, 0;
 }
 
-void ParticleFilter::uniformSampling( void )
+void KalmanFilter::predict(void)
 {
-	//! Uniform sampling in the image to create state samples.
-	cv::RNG rng;
-	Eigen::Vector2f sum;
-	sum.setZero();
-	for(int i = 0; i < _num_particles; i++)
-	{
-		_state.samples.push_back(Eigen::Vector2f(rng.uniform(0,_image_width),
-				rng.uniform(0,_image_height)));
-		sum += Eigen::Vector2f(rng.uniform(0,_image_width), rng.uniform(0,_image_height));
-	}
+	_predicted_state.mean = _transition_model * _state.mean;
+	_predicted_state.cov = _transition_model * _state.cov * _transition_model.transpose();
+}
+
+void KalmanFilter::update(void)
+{
+	Eigen::Vector2f h_x = _obs_model * _state.mean;
+
+	Eigen::Matrix2f temp = _obs_model*_predicted_state.cov*_obs_model.transpose();
+	Matrix4_2f K = _predicted_state.cov * _obs_model * temp.inverse();
+
+	_state.mean = _predicted_state.mean + K * (_observation.mean - h_x);
+	_state.cov = _predicted_state.cov - K * _obs_model * _predicted_state.cov;
 }

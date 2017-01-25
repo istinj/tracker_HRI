@@ -5,37 +5,42 @@
 
 #include "utilities.h"
 
+typedef Eigen::Matrix<float, 2, 4> Matrix2_4f;
+typedef Eigen::Matrix<float, 4, 2> Matrix4_2f;
+
+//! STATO = (x,y,Vx,Vy) -> laserscan space
 struct State
 {
-	std::vector<Eigen::Vector2f> samples;
-	Eigen::Vector2f mean;
-	Eigen::Matrix4f variance;
+	Eigen::Vector4f mean; // (x,y,vx,vy)
+	Eigen::Matrix4f cov;
 };
 
+//! OBSERVATION = (x,y) of the laserscan detection's center.
 struct Observation
 {
-	Eigen::Vector2f mean;
-	Eigen::Matrix2f variance;
+	Eigen::Vector2f mean; // (x,y)
+	Eigen::Matrix2f cov;
 };
 
-class ParticleFilter
+class KalmanFilter
 {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-	ParticleFilter(); //ctor
+	KalmanFilter(); //ctor
+
+	void oneStep(Eigen::Vector4f& state_mean, Eigen::Matrix4f& state_covariance);
+
+	void setState(const Eigen::Vector4f& mean, const Eigen::Matrix4f& cov);
+	void setObservation(const Eigen::Vector2f& mean, const Eigen::Matrix2f& cov);
 
 private:
-	//! STATO = (u,v,Vx,Vy) -> image space
-	//! OBSERVATION = (u,v) of the detection's center.
-	void uniformSampling( void );
-	void predict(Eigen::Vector4f samples, Eigen::Matrix4f T);
+	void predict(void);
+	void update(void);
 
-	State _state;
+	float _deltaT;
+
+	State _state, _predicted_state;
 	Observation _observation;
-
 	Eigen::Matrix4f _transition_model;
-	std::vector<float> _weights;
-	int _num_particles;
-	int _image_width;
-	int _image_height;
+	Matrix2_4f _obs_model;
 };

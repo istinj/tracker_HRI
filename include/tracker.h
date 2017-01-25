@@ -10,8 +10,6 @@
 //ROS
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
-#include <geometry_msgs/Twist.h>
-#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <laser_analysis/LaserObstacle.h>
@@ -25,7 +23,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
-#include <opencv2/video/background_segm.hpp>
 //EIGEN
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
@@ -46,6 +43,8 @@ public:
 	void getRobotPose(void);
 
 private:
+	KalmanFilter *_ekf;
+
 	tf::TransformListener *_listener;
 	cv::HOGDescriptor *_hog_descriptor;
 	std::vector<float> _people_detector;

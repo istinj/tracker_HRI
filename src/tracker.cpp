@@ -11,6 +11,8 @@ Tracker::Tracker()
 	_prev_mean_distance = 0;
 	_obs_variance = 0;
 
+	_ekf = new KalmanFilter::KalmanFilter();
+
 	_listener = new tf::TransformListener();
 
 	_hog_descriptor = new cv::HOGDescriptor();
@@ -245,17 +247,12 @@ void Tracker::laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
 
 void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 {
-	//! TODO: use variance to cut depth images on the y axis.
+	//! TODO: use variance to cut depth images on the y axis. -> zero
 	//! TODO: track _obstacle_pos with a KALMAN FILTER.
 	_obs_pos << msg->mx, msg->my;
 	_obs_variance = msg->var;
-	cout << BOLDCYAN << "Mean point:  " << _obs_pos.x() << " " << _obs_pos.y() << RESET << endl;
-	cout << BOLDMAGENTA << "Variance:  " << _obs_variance << RESET << endl;
+
 	getRobotPose();
-	cout << BOLDGREEN << "Diago pose:  " <<
-			_diago_pose.x() << " " <<
-			_diago_pose.y() << " " <<
-			_diago_pose.z() << RESET << endl;
 
 	Eigen::Vector2f temp;
 	float mean_distance;
@@ -269,6 +266,13 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 		_mean_distance = _prev_mean_distance;
 	_prev_mean_distance = _mean_distance;
 
+	cout << BOLDCYAN 	<< "Obs pose:  " 	<< _obs_pos.x() << " " << _obs_pos.y() << RESET << endl;
+	cout << BOLDMAGENTA << "Variance:  " 	<< _obs_variance << RESET << endl;
+	cout << BOLDGREEN 	<<
+			"Diago pose:  " <<
+			_diago_pose.x() << " " <<
+			_diago_pose.y() << " " <<
+			_diago_pose.z() << RESET << endl;
 	cout << BOLDYELLOW << "Mean distance = " << mean_distance << RESET << endl;
 	return;
 }
