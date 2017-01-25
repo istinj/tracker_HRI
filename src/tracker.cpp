@@ -6,9 +6,10 @@ Tracker::Tracker()
 {
 	_obstacle = false;
 	_diago_pose.setZero();
-	_obstacle_pos.setZero();
+	_obs_pos.setZero();
 	_mean_distance = 0;
 	_prev_mean_distance = 0;
+	_obs_variance = 0;
 
 	_listener = new tf::TransformListener();
 
@@ -37,8 +38,8 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
 		{
-			if(depth_bridge->image.at<float>(i,j) < mean_depth - 600 ||
-					depth_bridge->image.at<float>(i,j) > mean_depth + 100)
+			if(depth_bridge->image.at<float>(i,j) < mean_depth - 500 ||
+					depth_bridge->image.at<float>(i,j) > mean_depth + 500)
 				depth_bridge->image.at<float>(i,j) = 0;
 		}
 	}
@@ -84,7 +85,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		{
 			const std::vector<cv::Point>& contour = contour_vec[i];
 			float area = fabs(cv::contourArea(cv::Mat(contour)));
-			if(area > 11000.0f)
+			if(area > 8000.0f)
 			{
 				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
 				bound_rect_vect[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
@@ -96,6 +97,8 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			}
 		}
 	}
+	//else
+		//_roi_vector.clear(); //! TODO: clear vector?
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
 }
@@ -131,51 +134,61 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 //	}
 //
 //
-//	if(_roi_vector.size() > 0)
-//	{
-//		if(!show_images)
-//		{
-//			for(int i = 0; i < _roi_vector.size(); i++)
-//			{
-//				std::string window_name = "rgb_" + std::to_string(i);
-//				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
-//			}
-//		}
-//
-////		//! How to make it work single scale?
-////		for(int i = 0; i < _roi_vector.size(); i++)
-////		{
-////			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
-////			cout << RED << temp_vector.size() << RESET << endl;
-////			detected_point_vector.push_back(temp_vector);
-////			temp_vector.clear();
-////		}
-//
-//
-//		for(int j = 0; j < _roi_vector.size(); j++)
-//		{
-//			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
-//			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
-//		}
-//
-//		//! TODO: Try another bag; try haar; try contact the prof.
+	if(_roi_vector.size() > 0)
+	{
+		if(show_images)
+		{
+			for(int i = 0; i < _roi_vector.size(); i++)
+			{
+				std::string window_name = "rgb_" + std::to_string(i);
+				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
+			}
+		}
+
+//		//! How to make it work single scale?
 //		for(int i = 0; i < _roi_vector.size(); i++)
 //		{
-//			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-//					0.0, cv::Size(8,8), cv::Size(32,32), 1.1, 2);
-//			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
-//			detected_rect_super_vector.push_back(detected_rect_vector);
-//			detected_rect_vector.clear();
+//			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
+//			cout << RED << temp_vector.size() << RESET << endl;
+//			detected_point_vector.push_back(temp_vector);
+//			temp_vector.clear();
 //		}
-//	}
-//	else
-//	{
-//		temp_vector.clear();
-//		detected_point_vector.clear();
-//		detected_rect_vector.clear();
-//		detected_rect_super_vector.clear();
-//	}
 
+
+		for(int j = 0; j < _roi_vector.size(); j++)
+		{
+			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
+			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
+		}
+
+		for(int i = 0; i < _roi_vector.size(); i++)
+		{
+			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
+					0.0, cv::Size(8,8), cv::Size(32,32), 1.15, 2);
+			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
+			detected_rect_super_vector.push_back(detected_rect_vector);
+
+			if(detected_rect_vector.size() > 0)
+			{
+				for(int j = 0; j < detected_rect_vector.size(); j++)
+				{
+					cv::Point person_center(detected_rect_vector[j].tl().x + (detected_rect_vector[j].width/2),
+							detected_rect_vector[j].tl().y + (detected_rect_vector[j].height/2));
+					cv::circle(curr_frame_rgb, person_center, detected_rect_vector[j].height/4, cv::Scalar(37,168,25), 3);
+				}
+			}
+			detected_rect_vector.clear();
+		}
+	}
+	else
+	{
+		temp_vector.clear();
+		detected_point_vector.clear();
+		detected_rect_vector.clear();
+		detected_rect_super_vector.clear();
+	}
+
+	/*
 	// ********************************************* //
 	// ************** HAAR UPPER-BODY ************** //
 	// ********************************************* //
@@ -199,7 +212,7 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 
 			//! Detect people using haar_upper_body detector in each ROI
 			_haar_detector->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					1.1, 2, 0|CV_HAAR_SCALE_IMAGE, cv::Size(30, 30));
+					1.2, 2, 0|CV_HAAR_SCALE_IMAGE, cv::Size(16, 32));
 
 			cout << "Haar detection size: " << detected_rect_vector.size() << endl;
 
@@ -209,11 +222,11 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 				{
 					cv::Point person_center(detected_rect_vector[j].tl().x + (detected_rect_vector[j].width/2),
 							detected_rect_vector[j].tl().y + (detected_rect_vector[j].height/2));
-					cv::circle(curr_frame_rgb, person_center, 10, cv::Scalar(37,168,25), -1);
+					cv::circle(curr_frame_rgb, person_center, detected_rect_vector[j].height/4, cv::Scalar(37,168,25), 3);
 				}
 			}
 		}
-	}
+	}/**/
 
 
 	if(show_images)
@@ -232,8 +245,12 @@ void Tracker::laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
 
 void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 {
-	_obstacle_pos << msg->mx, msg->my;
-	cout << BOLDCYAN << "Mean point:  " << _obstacle_pos.x() << " " << _obstacle_pos.y() << RESET << endl;
+	//! TODO: use variance to cut depth images on the y axis.
+	//! TODO: track _obstacle_pos with a KALMAN FILTER.
+	_obs_pos << msg->mx, msg->my;
+	_obs_variance = msg->var;
+	cout << BOLDCYAN << "Mean point:  " << _obs_pos.x() << " " << _obs_pos.y() << RESET << endl;
+	cout << BOLDMAGENTA << "Variance:  " << _obs_variance << RESET << endl;
 	getRobotPose();
 	cout << BOLDGREEN << "Diago pose:  " <<
 			_diago_pose.x() << " " <<
@@ -242,7 +259,7 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 
 	Eigen::Vector2f temp;
 	float mean_distance;
-	temp = _obstacle_pos + _diago_pose.block<2,1>(0,0);
+	temp = _obs_pos + _diago_pose.block<2,1>(0,0);
 
 	mean_distance = sqrtf(powf(temp.x() - _diago_pose.x(), 2.0f) +
 			powf(temp.y() - _diago_pose.y(), 2.0f));

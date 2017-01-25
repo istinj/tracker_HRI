@@ -4,7 +4,7 @@
 		<param name="laser_frame_id" value="/diago/laser_frame" />
 		<param name="obstacle_margin_x_min" value="0" />
 		<param name="obstacle_margin_x_max" value="6" />
-		<param name="obstacle_margin_y_min" value="-1.5" />
-		<param name="obstacle_margin_y_max" value="1.5" />
+		<param name="obstacle_margin_y_min" value="-0.7" />
+		<param name="obstacle_margin_y_max" value="0.7" />
 	</node>
 </launch>

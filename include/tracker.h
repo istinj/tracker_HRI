@@ -31,6 +31,7 @@
 #include <eigen3/Eigen/Geometry>
 
 #include "utilities.h"
+#include "filter.h"
 
 class Tracker
 {
@@ -54,8 +55,9 @@ private:
 	cv::CascadeClassifier* _haar_detector;
 
 	Eigen::Vector3f _diago_pose;
-	Eigen::Vector2f _obstacle_pos;
+	Eigen::Vector2f _obs_pos;
 	float _mean_distance, _prev_mean_distance;
+	float _obs_variance;
 
 	bool _obstacle;
 
