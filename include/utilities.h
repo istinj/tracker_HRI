@@ -4,13 +4,16 @@
  *  Created on: 10/dic/2016
  *      Author: istin
  */
-
+#pragma once
 #include <iostream>
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <cmath>
+//EIGEN
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Geometry>
 
 //OpenCV
 #include <opencv2/opencv.hpp>
@@ -34,6 +37,22 @@
 #define BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
 
 #define FPS (int)1000/29
+
+
+//! STATO = (x,y,Vx,Vy) -> laserscan space
+struct State
+{
+	Eigen::Vector4f mean; // (x,y,vx,vy)
+	Eigen::Matrix4f cov;
+};
+
+//! OBSERVATION = (x,y) of the laserscan detection's center.
+struct Observation
+{
+	Eigen::Vector2f mean; // (x,y)
+	Eigen::Matrix2f cov;
+};
+
 
 float roundPI2(float a);
 void displayImage(const cv::Mat& image_, const std::string name_);

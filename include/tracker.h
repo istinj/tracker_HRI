@@ -29,6 +29,7 @@
 
 #include "utilities.h"
 #include "filter.h"
+#include "obstacle.h"
 
 class Tracker
 {
@@ -43,6 +44,7 @@ public:
 	void getRobotPose(void);
 
 private:
+	//! For filtering on laserscan data
 	KalmanFilter *_ekf;
 
 	tf::TransformListener *_listener;
@@ -50,14 +52,7 @@ private:
 	std::vector<float> _people_detector;
 	std::vector<cv::Rect> _roi_vector;
 
-	std::string _path_haar_upperbody = "/home/istin/Documenti/1_CATKIN_SRCS/HRI_srcs/tracker_hri/misc/haarcascades/haarcascade_upperbody.xml";
-	cv::CascadeClassifier* _haar_detector;
-
 	Eigen::Vector3f _diago_pose;
-	Eigen::Vector2f _obs_pos;
-	float _mean_distance, _prev_mean_distance;
-	float _obs_variance;
 
-	bool _obstacle;
-
+	Obstacle* _obstacle;
 };

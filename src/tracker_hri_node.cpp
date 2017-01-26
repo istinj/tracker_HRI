@@ -1,4 +1,3 @@
-#include "utilities.h"
 #include "tracker.h"
 
 using namespace std;

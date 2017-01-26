@@ -4,23 +4,16 @@ using namespace std;
 
 Tracker::Tracker()
 {
-	_obstacle = false;
 	_diago_pose.setZero();
-	_obs_pos.setZero();
-	_mean_distance = 0;
-	_prev_mean_distance = 0;
-	_obs_variance = 0;
 
-	_ekf = new KalmanFilter::KalmanFilter();
+	_obstacle = new Obstacle();
+	_ekf = new KalmanFilter();
 
 	_listener = new tf::TransformListener();
 
 	_hog_descriptor = new cv::HOGDescriptor();
 	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
 	_hog_descriptor->setSVMDetector(_people_detector);
-
-	_haar_detector = new cv::CascadeClassifier();
-	_haar_detector->load(_path_haar_upperbody);
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -35,19 +28,17 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
-	float mean_depth = _mean_distance;
+	float mean_depth = _obstacle->getDistance();
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
 		{
-			if(depth_bridge->image.at<float>(i,j) < mean_depth - 500 ||
+			if(depth_bridge->image.at<float>(i,j) < mean_depth - 1500 ||
 					depth_bridge->image.at<float>(i,j) > mean_depth + 500)
 				depth_bridge->image.at<float>(i,j) = 0;
 		}
 	}
-	// --------------------------------------------------- //
-	// -- CONVERTING THE RAW DATA INTO DISPLAYBLE IMAGE -- //
-	// --------------------------------------------------- //
+
 	cv::Mat depth_image(depth_bridge->image.rows,
 		depth_bridge->image.cols,
 		CV_8UC1);
@@ -110,8 +101,6 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	bool show_images = true;
 
 	std::vector<cv::Rect> detected_rect_vector;
-	std::vector<std::vector<cv::Rect>> detected_rect_super_vector;
-	std::vector<std::vector<cv::Point>> detected_point_vector;
 	std::vector<cv::Point> temp_vector;
 
 	// Convert from sensor_msg to cv mat
@@ -126,19 +115,9 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	// ********************************************* //
 	// ****************** HOG BODY ***************** //
 	// ********************************************* //
-	// Multiscale
-//	_hog_descriptor->detectMultiScale(curr_frame_gray, body_vector, 0.3,
-//		cv::Size(8,8), cv::Size(32, 32), 1.05, 2 );
-//	for (int i = 0; i < body_vector.size(); i++)
-//	{
-//		cv::rectangle(curr_frame_gray, body_vector[i].tl(),
-//			body_vector[i].br(), cv::Scalar(180,10,10));
-//	}
-//
-//
 	if(_roi_vector.size() > 0)
 	{
-		if(show_images)
+		if(!show_images)
 		{
 			for(int i = 0; i < _roi_vector.size(); i++)
 			{
@@ -152,7 +131,6 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 //		{
 //			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
 //			cout << RED << temp_vector.size() << RESET << endl;
-//			detected_point_vector.push_back(temp_vector);
 //			temp_vector.clear();
 //		}
 
@@ -167,8 +145,7 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 		{
 			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
 					0.0, cv::Size(8,8), cv::Size(32,32), 1.15, 2);
-			cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
-			detected_rect_super_vector.push_back(detected_rect_vector);
+			//cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
 
 			if(detected_rect_vector.size() > 0)
 			{
@@ -185,51 +162,8 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	else
 	{
 		temp_vector.clear();
-		detected_point_vector.clear();
 		detected_rect_vector.clear();
-		detected_rect_super_vector.clear();
 	}
-
-	/*
-	// ********************************************* //
-	// ************** HAAR UPPER-BODY ************** //
-	// ********************************************* //
-	if(_roi_vector.size() > 0)
-	{
-		//! Show ROIs - just for debug
-		if(!show_images)
-		{
-			for(int i = 0; i < _roi_vector.size(); i++)
-			{
-				std::string window_name = "rgb_" + std::to_string(i);
-				displayImage(curr_frame_rgb(_roi_vector[i]), window_name);
-			}
-		}
-		for(int i = 0; i < _roi_vector.size(); i++)
-		{
-			//! Draw a circle in the center of the current ROI - red
-			cv::Point roi_center(_roi_vector[i].tl().x + (_roi_vector[i].width/2),
-					_roi_vector[i].tl().y + (_roi_vector[i].height/2));
-			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
-
-			//! Detect people using haar_upper_body detector in each ROI
-			_haar_detector->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					1.2, 2, 0|CV_HAAR_SCALE_IMAGE, cv::Size(16, 32));
-
-			cout << "Haar detection size: " << detected_rect_vector.size() << endl;
-
-			if(detected_rect_vector.size() > 0)
-			{
-				for(int j = 0; j < detected_rect_vector.size(); j++)
-				{
-					cv::Point person_center(detected_rect_vector[j].tl().x + (detected_rect_vector[j].width/2),
-							detected_rect_vector[j].tl().y + (detected_rect_vector[j].height/2));
-					cv::circle(curr_frame_rgb, person_center, detected_rect_vector[j].height/4, cv::Scalar(37,168,25), 3);
-				}
-			}
-		}
-	}/**/
-
 
 	if(show_images)
 	{
@@ -249,31 +183,45 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 {
 	//! TODO: use variance to cut depth images on the y axis. -> zero
 	//! TODO: track _obstacle_pos with a KALMAN FILTER.
-	_obs_pos << msg->mx, msg->my;
-	_obs_variance = msg->var;
-
 	getRobotPose();
 
-	Eigen::Vector2f temp;
-	float mean_distance;
-	temp = _obs_pos + _diago_pose.block<2,1>(0,0);
+	Eigen::Vector2f temp_meas(msg->mx, msg->my);
+	Eigen::Matrix2f temp_meas_cov;
+	temp_meas_cov.setIdentity();
+	temp_meas_cov(0,0) *= 5;
+//	temp_meas_cov *= pow(msg->var,2);
 
-	mean_distance = sqrtf(powf(temp.x() - _diago_pose.x(), 2.0f) +
-			powf(temp.y() - _diago_pose.y(), 2.0f));
-	_mean_distance = mean_distance * 1000.0f;
+	if(temp_meas.norm() != 0)
+		_obstacle->setSeenFlag();
+	else
+		temp_meas_cov(0,0) *= 60.0f;
 
-	if(_mean_distance == 0.0f)
-		_mean_distance = _prev_mean_distance;
-	_prev_mean_distance = _mean_distance;
+	if (_obstacle->getFlag())
+	{
+		_obstacle->setObservation(temp_meas, temp_meas_cov);
 
-	cout << BOLDCYAN 	<< "Obs pose:  " 	<< _obs_pos.x() << " " << _obs_pos.y() << RESET << endl;
-	cout << BOLDMAGENTA << "Variance:  " 	<< _obs_variance << RESET << endl;
-	cout << BOLDGREEN 	<<
-			"Diago pose:  " <<
-			_diago_pose.x() << " " <<
-			_diago_pose.y() << " " <<
-			_diago_pose.z() << RESET << endl;
-	cout << BOLDYELLOW << "Mean distance = " << mean_distance << RESET << endl;
+		if(_ekf->getHistorySize() == 0)
+		{
+			cout << RED << "init" << RESET << endl;
+			Eigen::Matrix4f temp_1;
+			temp_1.setIdentity();
+			_obstacle->initObs(Eigen::Vector4f(msg->mx, msg->my, 0, 0),temp_1);
+//			_obstacle->initObs(Eigen::Vector4f(17.0f, 17.0f, 0, 0),temp_1);
+			_ekf->oneStep(_obstacle);
+		}
+		else
+			_ekf->oneStep(_obstacle);
+	}
+
+	_obstacle->evaluateDistance();
+
+	// Print out stuff
+	cout << BLUE << _ekf->getHistorySize() << RESET << endl;
+	cout << BOLDCYAN << "New State:" << endl;
+	_obstacle->printState();
+
+	cout << BOLDMAGENTA << "msg:  " << msg->mx << " " << msg->my << RESET << endl;
+	cout << BOLDYELLOW << "Mean distance = " << _obstacle->getDistance() << RESET << endl;
 	return;
 }
 
