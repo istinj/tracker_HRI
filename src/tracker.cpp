@@ -5,6 +5,7 @@ using namespace std;
 Tracker::Tracker()
 {
 	_diago_pose.setZero();
+	_prev_meas.setZero();
 
 	_obstacle = new Obstacle();
 	_ekf = new KalmanFilter();
@@ -188,13 +189,17 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	Eigen::Vector2f temp_meas(msg->mx, msg->my);
 	Eigen::Matrix2f temp_meas_cov;
 	temp_meas_cov.setIdentity();
-	temp_meas_cov(0,0) *= 5;
+	temp_meas_cov(0,0) = 0.7;
 //	temp_meas_cov *= pow(msg->var,2);
 
-	if(temp_meas.norm() != 0)
-		_obstacle->setSeenFlag();
+	if(temp_meas.norm() == 0)
+	{
+		temp_meas = _prev_meas;
+		temp_meas_cov(0,0) /= 8.0f;
+	}
 	else
-		temp_meas_cov(0,0) *= 60.0f;
+		_obstacle->setSeenFlag();
+
 
 	if (_obstacle->getFlag())
 	{
@@ -206,7 +211,7 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 			Eigen::Matrix4f temp_1;
 			temp_1.setIdentity();
 			_obstacle->initObs(Eigen::Vector4f(msg->mx, msg->my, 0, 0),temp_1);
-//			_obstacle->initObs(Eigen::Vector4f(17.0f, 17.0f, 0, 0),temp_1);
+		//	_obstacle->initObs(Eigen::Vector4f(17.0f, 17.0f, 0, 0),temp_1);
 			_ekf->oneStep(_obstacle);
 		}
 		else
@@ -214,14 +219,13 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	}
 
 	_obstacle->evaluateDistance();
+	_prev_meas = temp_meas;
 
 	// Print out stuff
-	cout << BLUE << _ekf->getHistorySize() << RESET << endl;
-	cout << BOLDCYAN << "New State:" << endl;
-	_obstacle->printState();
-
-	cout << BOLDMAGENTA << "msg:  " << msg->mx << " " << msg->my << RESET << endl;
-	cout << BOLDYELLOW << "Mean distance = " << _obstacle->getDistance() << RESET << endl;
+	cout << BOLDCYAN 	<< "New State:" 		<< endl; _obstacle->printState();
+	cout << BOLDMAGENTA << "msg          :\t" 	<< msg->mx << " " << msg->my << RESET << endl;
+	cout << BOLDBLUE 	<< "temp_meas    :\t" 	<< temp_meas.x() << " " << temp_meas.y() << RESET<< endl;
+	cout << BOLDYELLOW 	<< "Mean dist[mm]:\t" 	<< _obstacle->getDistance() << RESET << endl;
 	return;
 }
 

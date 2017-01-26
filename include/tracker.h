@@ -53,6 +53,7 @@ private:
 	std::vector<cv::Rect> _roi_vector;
 
 	Eigen::Vector3f _diago_pose;
+	Eigen::Vector2f _prev_meas;
 
 	Obstacle* _obstacle;
 };

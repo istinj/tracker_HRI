@@ -24,12 +24,12 @@ public:
 
 	void printState(void);
 
-	inline void getState(State& state){state = _o_state;};
-	inline void getObs(Observation& obs){obs = _o_meas;};
 	inline void setSeenFlag(void){_seen = true;};
 	inline int getDistance(void){return _o_distance;};
 	inline bool getFlag(void){return _seen;};
 	inline Eigen::Vector2f getPos(void){return _o_state.mean.block<2,1>(0,0);};
+	inline State getState(void){return _o_state;};
+	inline Observation getObs(void){return _o_meas;};
 
 private:
 	State _o_state; //position, velocity and covariance

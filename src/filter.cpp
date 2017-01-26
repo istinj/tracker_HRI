@@ -32,8 +32,8 @@ void KalmanFilter::update(void)
 
 void KalmanFilter::oneStep(Obstacle* obstacle)
 {
-	obstacle->getState(_state);
-	obstacle->getObs(_observation);
+	_state = obstacle->getState();
+	_observation = obstacle->getObs();
 
 	predict();
 	update();
