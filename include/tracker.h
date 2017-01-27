@@ -45,8 +45,6 @@ public:
 	void laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
 
 	void getRobotPose(void);
-	void projectPoint(const Eigen::Vector3f& model_point,
-			Eigen::Vector2f& camera_point);
 
 private:
 	KalmanFilter *_ekf;
@@ -63,5 +61,5 @@ private:
 	Obstacle* _obstacle;
 
 	Eigen::Matrix3f _K;
-	float _human_width;
+	int _human_width;
 };

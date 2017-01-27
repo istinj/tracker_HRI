@@ -21,8 +21,11 @@ public:
 	void initObs(const Eigen::Vector4f& x, const Eigen::Matrix4f& omega);
 	void updateState(const State& new_state);
 	void evaluateDistance(void);
-
 	void printState(void);
+
+	//! Projects the mean point of the obstacle
+	Eigen::Vector2f projectPos(const Eigen::Matrix3f& K);
+	Eigen::Vector2f getProjPos(void);
 
 	inline void setSeenFlag(void){_seen = true;};
 	inline int getDistance(void){return _o_distance;};
@@ -35,6 +38,7 @@ private:
 	State _o_state; //position, velocity and covariance
 	Observation _o_meas; //position and covariance of observation
 
+	Eigen::Vector2f _projected_obs_pos;
 	float _o_distance;
 	bool _seen;
 };

@@ -18,7 +18,7 @@ Tracker::Tracker()
 	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
 	_hog_descriptor->setSVMDetector(_people_detector);
 
-	_human_width = 40; // pixels
+	_human_width = 60; // pixels
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -29,21 +29,15 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	double min, max;
 	float mean_depth = _obstacle->getDistance();
 
-	//! Project the mean point of the obstacle
-	Eigen::Vector2f projected_obs, temp_point;
-	Eigen::Vector3f world_obs(_obstacle->getPos().y(),
-			0.0f, // any height will be ok, since we are interested only to the u-coord
-			_obstacle->getPos().x()); //!_obstacle->getDistance().x() ??
-	projectPoint(world_obs, projected_obs);
-	temp_point = projected_obs + Eigen::Vector2f(0, -50);
-
-
-	cout << GREEN << temp_point.transpose() << RESET << endl;
-	cout << BOLDWHITE << projected_obs.transpose() << RESET << endl;
-
-
 	_roi_vector.clear();
 
+	//! Project the mean point of the obstacle to crop the
+	//! depth image on the u-axis
+	Eigen::Vector2f projected_obs, temp_point;
+	projected_obs = _obstacle->projectPos(_K);
+	temp_point = projected_obs + Eigen::Vector2f(0, -50);
+
+	// Depth-based crop (wrt laser_analysis data)
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
@@ -57,6 +51,20 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
+	// Y-crop (wrt obstacle)
+	if(projected_obs.norm() > 0)
+	{
+		for(int i = 0; i < depth_bridge->image.rows; i++)
+		{
+			for(int j = 0; j < depth_bridge->image.cols; j++)
+			{
+				if(j < projected_obs.x() - _human_width || j > projected_obs.x() + _human_width)
+					depth_bridge->image.at<float>(i,j) = 0;
+			}
+		}
+	}
+
+	// Conversion into a displayble image
 	cv::Mat depth_image(depth_bridge->image.rows,
 		depth_bridge->image.cols,
 		CV_8UC1);
@@ -71,7 +79,6 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			}
 		}
 	}
-
 	for (int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		// pointer to values -> modify the real values
@@ -84,6 +91,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
+	// Find ROIs based on their area
 	std::vector<std::vector<cv::Point> > contour_vec;
 	std::vector<cv::Vec4i> hierarchy;
 	findContours(depth_image.clone(), contour_vec, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -108,10 +116,12 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 			}
 		}
 	}
-	//else
-		//_roi_vector.clear(); //! TODO: clear vector?
+
+	//! Only for debug
 	cv::line(depth_image, cv::Point(projected_obs.x(),projected_obs.y()),
 			cv::Point(temp_point.x(),temp_point.y()), cv::Scalar(255,19,19));
+
+	// Display the final depth image
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
 }
@@ -268,13 +278,4 @@ void Tracker::getRobotPose(void)
 			(float)T.getOrigin().y(),
 			(float)yaw;
 	return;
-}
-
-void Tracker::projectPoint(const Eigen::Vector3f& model_point,
-		Eigen::Vector2f& camera_point)
-{
-	Eigen::Vector3f temp_pp = _K * model_point;
-	camera_point << temp_pp.x()/temp_pp.z(),
-			temp_pp.y()/temp_pp.z();
-
 }
