@@ -56,11 +56,13 @@ int main(int argc, char *argv[])
 	std::string topic_odom = "/diago/odom";
 	std::string topic_laser_obs = "/diago/laser_obstacle";
 	std::string topic_laser_obs_map = "/laser_obstacle_map";
+	std::string topic_depth_camInfo = "/diago/top_camera/depth/camera_info";
+	std::string topic_rgb_camInfo = "/diago/top_camera/rgb/camera_info";
 	
 	ros::Subscriber depth_sub = n.subscribe(topic_depth, 1, &Tracker::depthCB, &tracker);
 	ros::Subscriber rgb_sub = n.subscribe(topic_rgb, 1, &Tracker::rgbCB, &tracker);
-//	ros::Subscriber laser_obs_sub = n.subscribe(topic_laser_obs, 1, &Tracker::laserObsCB, &tracker);
 	ros::Subscriber laser_obs_map_sub = n.subscribe(topic_laser_obs_map, 1, &Tracker::laserObsMapCB, &tracker);
+	ros::Subscriber depth_camInfo_sub = n.subscribe(topic_depth_camInfo, 1, &Tracker::depthCamInfoCB, &tracker);
 
 
 	ros::spin();

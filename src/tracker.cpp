@@ -7,6 +7,8 @@ Tracker::Tracker()
 	_diago_pose.setZero();
 	_prev_meas.setZero();
 
+	_K.setIdentity();
+
 	_obstacle = new Obstacle();
 	_ekf = new KalmanFilter();
 
@@ -15,6 +17,8 @@ Tracker::Tracker()
 	_hog_descriptor = new cv::HOGDescriptor();
 	_people_detector = cv::HOGDescriptor::getDefaultPeopleDetector();
 	_hog_descriptor->setSVMDetector(_people_detector);
+
+	_human_width = 40; // pixels
 }
 
 void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
@@ -23,18 +27,31 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	float min_range = 0.0f;
 	float max_range = 0.1f;
 	double min, max;
+	float mean_depth = _obstacle->getDistance();
+
+	//! Project the mean point of the obstacle
+	Eigen::Vector2f projected_obs, temp_point;
+	Eigen::Vector3f world_obs(_obstacle->getPos().y(),
+			0.0f, // any height will be ok, since we are interested only to the u-coord
+			_obstacle->getPos().x()); //!_obstacle->getDistance().x() ??
+	projectPoint(world_obs, projected_obs);
+	temp_point = projected_obs + Eigen::Vector2f(0, -50);
+
+
+	cout << GREEN << temp_point.transpose() << RESET << endl;
+	cout << BOLDWHITE << projected_obs.transpose() << RESET << endl;
+
 
 	_roi_vector.clear();
 
 	cv_bridge::CvImagePtr depth_bridge;
 	depth_bridge = cv_bridge::toCvCopy(msg, "32FC1");
 
-	float mean_depth = _obstacle->getDistance();
 	for(int i = 0; i < depth_bridge->image.rows; i++)
 	{
 		for(int j = 0; j < depth_bridge->image.cols; j++)
 		{
-			if(depth_bridge->image.at<float>(i,j) < mean_depth - 1500 ||
+			if(depth_bridge->image.at<float>(i,j) < mean_depth - 1000 ||
 					depth_bridge->image.at<float>(i,j) > mean_depth + 500)
 				depth_bridge->image.at<float>(i,j) = 0;
 		}
@@ -93,8 +110,19 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	}
 	//else
 		//_roi_vector.clear(); //! TODO: clear vector?
+	cv::line(depth_image, cv::Point(projected_obs.x(),projected_obs.y()),
+			cv::Point(temp_point.x(),temp_point.y()), cv::Scalar(255,19,19));
 	if(show_images)
 		displayImage(depth_image, "Depth Image");
+}
+
+void Tracker::depthCamInfoCB(const sensor_msgs::CameraInfoConstPtr& msg)
+{
+	for(int i = 0; i < 3; i++)
+	{
+		for(int j = 0; j < 3; j++)
+			_K(i,j) = msg->K[i*3 + j];
+	}
 }
 
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
@@ -113,9 +141,8 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	cv::cvtColor(curr_frame_rgb, curr_frame_gray, cv::COLOR_BGR2GRAY);
 	cv::equalizeHist(curr_frame_gray, curr_frame_gray);
 
-	// ********************************************* //
-	// ****************** HOG BODY ***************** //
-	// ********************************************* //
+
+	//! Showing the ROIs found in different windows.
 	if(_roi_vector.size() > 0)
 	{
 		if(!show_images)
@@ -127,27 +154,20 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 			}
 		}
 
-//		//! How to make it work single scale?
-//		for(int i = 0; i < _roi_vector.size(); i++)
-//		{
+		for(int i = 0; i < _roi_vector.size(); i++)
+		{
+			// Highlight the ROI center with a RED DOT;
+			cv::Point roi_center(_roi_vector[i].tl().x + (_roi_vector[i].width/2),_roi_vector[i].tl().y + (_roi_vector[i].height/2));
+			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
+
+			// Perform HOG on the current ROI to find people
+			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
+					0.0, cv::Size(8,8), cv::Size(32,32), 1.15, 2);
 //			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
 //			cout << RED << temp_vector.size() << RESET << endl;
 //			temp_vector.clear();
-//		}
 
-
-		for(int j = 0; j < _roi_vector.size(); j++)
-		{
-			cv::Point roi_center(_roi_vector[j].tl().x + (_roi_vector[j].width/2),_roi_vector[j].tl().y + (_roi_vector[j].height/2));
-			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
-		}
-
-		for(int i = 0; i < _roi_vector.size(); i++)
-		{
-			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					0.0, cv::Size(8,8), cv::Size(32,32), 1.15, 2);
-			//cout << "detected_rect_vector size: " << detected_rect_vector.size() << endl;
-
+			// If HOG found something, highlight it in the current rgb-frame
 			if(detected_rect_vector.size() > 0)
 			{
 				for(int j = 0; j < detected_rect_vector.size(); j++)
@@ -190,7 +210,7 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	Eigen::Matrix2f temp_meas_cov;
 	temp_meas_cov.setIdentity();
 	temp_meas_cov(0,0) = 0.7;
-//	temp_meas_cov *= pow(msg->var,2);
+//	temp_meas_cov *= powf((float)msg->var,2.0f);
 
 	if(temp_meas.norm() == 0)
 	{
@@ -222,10 +242,14 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	_prev_meas = temp_meas;
 
 	// Print out stuff
-	cout << BOLDCYAN 	<< "New State:" 		<< endl; _obstacle->printState();
-	cout << BOLDMAGENTA << "msg          :\t" 	<< msg->mx << " " << msg->my << RESET << endl;
-	cout << BOLDBLUE 	<< "temp_meas    :\t" 	<< temp_meas.x() << " " << temp_meas.y() << RESET<< endl;
-	cout << BOLDYELLOW 	<< "Mean dist[mm]:\t" 	<< _obstacle->getDistance() << RESET << endl;
+	if (false)
+	{
+		cout << BOLDCYAN 	<< "New State:" 		<< endl; _obstacle->printState();
+		cout << BOLDMAGENTA << "msg          :\t" 	<< msg->mx << " " << msg->my << RESET << endl;
+		cout << BOLDBLUE 	<< "temp_meas    :\t" 	<< temp_meas.x() << " " << temp_meas.y() << RESET<< endl;
+		cout << BOLDYELLOW 	<< "Mean dist[mm]:\t" 	<< _obstacle->getDistance() << RESET << endl;
+		cout << BOLDGREEN 	<< "msg->varaianc:\t" 	<< msg->var << RESET << endl;
+	}
 	return;
 }
 
@@ -244,4 +268,13 @@ void Tracker::getRobotPose(void)
 			(float)T.getOrigin().y(),
 			(float)yaw;
 	return;
+}
+
+void Tracker::projectPoint(const Eigen::Vector3f& model_point,
+		Eigen::Vector2f& camera_point)
+{
+	Eigen::Vector3f temp_pp = _K * model_point;
+	camera_point << temp_pp.x()/temp_pp.z(),
+			temp_pp.y()/temp_pp.z();
+
 }
