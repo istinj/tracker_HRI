@@ -104,7 +104,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 		{
 			const std::vector<cv::Point>& contour = contour_vec[i];
 			float area = fabs(cv::contourArea(cv::Mat(contour)));
-			if(area > 8000.0f)
+			if(area > 5000.0f)
 			{
 				cv::approxPolyDP(cv::Mat(contour), contours_poly[i], 3, true);
 				bound_rect_vect[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
@@ -112,6 +112,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 				{
 					_roi_vector.push_back(bound_rect_vect[i]);
 					cv::rectangle(depth_image, bound_rect_vect[i].tl(), bound_rect_vect[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
+					cout << BOLDBLUE << "Human found" << RESET << endl;
 				}
 			}
 		}

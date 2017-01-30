@@ -29,10 +29,14 @@ sleep 3
 # thin_localizer
 echo -e "    Starting thin_localizer_node . . ."
 # xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan' & # no initial position -> localization
-# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=2 _initial_pose_y:=18 _initial_pose_a:=4.71' & # 1st gen bag
-# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=1.1 _initial_pose_y:=4.1 _initial_pose_a:=1.57' & # nav gen bag
-# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=12 _initial_pose_y:=1.5 _initial_pose_a:=3.14' & # gest gen bag
-xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=9.1 _initial_pose_y:=1.5 _initial_pose_a:=0.0' & # gest gen bag
+xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=2 _initial_pose_y:=18 _initial_pose_a:=4.71' & # 1st gen bag
+
+# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=1.1 _initial_pose_y:=4.1 _initial_pose_a:=1.57' & # nav gen bag confusion
+# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=1.5 _initial_pose_y:=35.0 _initial_pose_a:=4.71' & # nav gen bag long
+
+# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=12 _initial_pose_y:=1.5 _initial_pose_a:=3.14' & # gest Mirco bag
+# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=1.5 _initial_pose_y:=10.0 _initial_pose_a:=4.71' & # gest Maite bag
+# xterm -iconic -e 'rosrun thin_navigation thin_localizer_node _odom_frame_id:=/diago/odom _base_frame_id:=/diago/base_frame _global_frame_id:=/map _laser_topic:=/diago/scan _initial_pose_x:=9.1 _initial_pose_y:=1.5 _initial_pose_a:=0.0' & # gest Static bag
 sleep 3
 
 # rviz
@@ -57,10 +61,13 @@ sleep 3
 
 # bag
 echo -e "${BOLDGREEN}Launching the bag . . . ${NC}"
-# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag' &
-# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_3_people_front_smooth_approach.bag' &
+xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag' &
 
-# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_robot_move.bag' &
-xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_person_move.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_3_people_front_smooth_approach.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_nav_long.bag' &
+
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_robot_move_mirco.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_robot_move_maite.bag' &
+# xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_person_move.bag' &
 sleep 1
 echo " "
