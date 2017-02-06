@@ -31,6 +31,7 @@
 #include "utilities.h"
 #include "filter.h"
 #include "obstacle.h"
+#include "detection.h"
 
 class Tracker
 {
@@ -47,18 +48,19 @@ public:
 	void getRobotPose(void);
 
 private:
-	KalmanFilter *_ekf;
+	KalmanFilter *_ekf_laser;
 
 	tf::TransformListener *_listener;
 	cv::HOGDescriptor *_hog_descriptor;
 
 	Eigen::Vector3f _diago_pose;
-	Eigen::Vector2f _prev_meas;
+	Eigen::Vector2f _prev_laser_meas;
 
 	std::vector<float> _people_detector;
 	std::vector<cv::Rect> _roi_vector;
 
 	Obstacle* _obstacle;
+	std::vector<Detection*> _detection_vec;
 
 	Eigen::Matrix3f _K;
 	int _human_width;

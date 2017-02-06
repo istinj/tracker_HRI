@@ -38,6 +38,9 @@
 
 #define FPS (int)1000/29
 
+typedef Eigen::Matrix<float, 2, 4> Matrix2_4f;
+typedef Eigen::Matrix<float, 4, 2> Matrix4_2f;
+
 
 //! STATO = (x,y,Vx,Vy) -> laserscan space
 struct State

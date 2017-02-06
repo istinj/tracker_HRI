@@ -7,9 +7,6 @@
 #include "utilities.h"
 #include "obstacle.h"
 
-typedef Eigen::Matrix<float, 2, 4> Matrix2_4f;
-typedef Eigen::Matrix<float, 4, 2> Matrix4_2f;
-
 class KalmanFilter
 {
 public:

@@ -129,7 +129,13 @@ include_directories(include
 # add_dependencies(tracker_hri ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-set(SRCS src/tracker_hri_node.cpp src/tracker.cpp src/utilities.cpp src/filter.cpp src/obstacle.cpp)
+set(	SRCS 
+	src/tracker_hri_node.cpp 
+	src/tracker.cpp 
+	src/utilities.cpp 
+	src/filter.cpp 
+	src/obstacle.cpp
+	src/detection.cpp)
 add_executable(tracker_hri_node ${SRCS})
 
 ## Add cmake target dependencies of the executable

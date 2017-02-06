@@ -5,12 +5,12 @@ using namespace std;
 Tracker::Tracker()
 {
 	_diago_pose.setZero();
-	_prev_meas.setZero();
+	_prev_laser_meas.setZero();
 
 	_K.setIdentity();
 
 	_obstacle = new Obstacle();
-	_ekf = new KalmanFilter();
+	_ekf_laser = new KalmanFilter();
 
 	_listener = new tf::TransformListener();
 
@@ -140,8 +140,11 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 {
 	bool show_images = true;
 
-	std::vector<cv::Rect> detected_rect_vector;
-	std::vector<cv::Point> temp_vector;
+	Eigen::Matrix4f inital_state_cov;
+	Eigen::Matrix2f meas_cov;
+
+	inital_state_cov.setIdentity();
+	meas_cov.setIdentity();
 
 	// Convert from sensor_msg to cv mat
 	cv_bridge::CvImageConstPtr cv_ptr;
@@ -152,10 +155,9 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	cv::cvtColor(curr_frame_rgb, curr_frame_gray, cv::COLOR_BGR2GRAY);
 	cv::equalizeHist(curr_frame_gray, curr_frame_gray);
 
-
-	//! Showing the ROIs found in different windows.
 	if(_roi_vector.size() > 0)
 	{
+		//! Showing the ROIs found in different windows.
 		if(!show_images)
 		{
 			for(int i = 0; i < _roi_vector.size(); i++)
@@ -165,36 +167,64 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 			}
 		}
 
+		//! initialize the detection vector
+		if(_detection_vec.size() == 0 ||
+				_detection_vec.size() != _roi_vector.size())
+		{
+			_detection_vec.clear();
+			_detection_vec.resize(_roi_vector.size());
+			for(int j = 0; j < _detection_vec.size(); j++)
+			{
+				_detection_vec[j] = new Detection();
+			}
+		}
+
+		//! check lengths --> remove
+		if(_roi_vector.size() != _detection_vec.size())
+		{
+			cerr << BOLDRED << "Det size = " << _detection_vec.size() <<
+					" != Roi size = " << _roi_vector.size() << RESET << endl;
+			return;
+		}
+
 		for(int i = 0; i < _roi_vector.size(); i++)
 		{
 			// Highlight the ROI center with a RED DOT;
+			// This dot is the meas of the new KF
 			cv::Point roi_center(_roi_vector[i].tl().x + (_roi_vector[i].width/2),_roi_vector[i].tl().y + (_roi_vector[i].height/2));
 			cv::circle(curr_frame_rgb, roi_center, 10 ,cv::Scalar(37,25,168), -1);
 
-			// Perform HOG on the current ROI to find people
-			_hog_descriptor->detectMultiScale(curr_frame_gray(_roi_vector[i]), detected_rect_vector,
-					0.0, cv::Size(8,8), cv::Size(32,32), 1.15, 2);
-//			_hog_descriptor->detect(curr_frame_gray(_roi_vector[i]), temp_vector, 0.0);
-//			cout << RED << temp_vector.size() << RESET << endl;
-//			temp_vector.clear();
+			cout << RED << roi_center << RESET << endl;
 
-			// If HOG found something, highlight it in the current rgb-frame
-			if(detected_rect_vector.size() > 0)
+			// Set observation of roi[i]
+			//! X e Y scambiate
+			_detection_vec[i]->setObservation(Eigen::Vector2f(roi_center.y, roi_center.x), meas_cov);
+
+			cout << GREEN <<_detection_vec[i]->getObs().mean.x() <<  _detection_vec[i]->getObs().mean.y() << RESET << endl;
+			// If it's just initialized
+			if(_detection_vec[i]->getInitFlag())
 			{
-				for(int j = 0; j < detected_rect_vector.size(); j++)
-				{
-					cv::Point person_center(detected_rect_vector[j].tl().x + (detected_rect_vector[j].width/2),
-							detected_rect_vector[j].tl().y + (detected_rect_vector[j].height/2));
-					cv::circle(curr_frame_rgb, person_center, detected_rect_vector[j].height/4, cv::Scalar(37,168,25), 3);
-				}
+				_detection_vec[i]->setInitFlag();
+				_detection_vec[i]->initState(Eigen::Vector4f(roi_center.y, roi_center.x, 0, 0), inital_state_cov);
+				cout << _detection_vec[i]->getPos() << endl;
 			}
-			detected_rect_vector.clear();
+			else
+			{
+				_detection_vec[i]->updateState();
+			}
+
+			// Show the filtered state
+			cv::circle(curr_frame_rgb,
+					cv::Point(_detection_vec[i]->getPos().x(), _detection_vec[i]->getPos().y()),
+					10 ,cv::Scalar(37,168,25), -1);
+//			cout << "detection[" << i << "] state:" << endl;
+//			_detection_vec[i]->printState();
 		}
 	}
 	else
 	{
-		temp_vector.clear();
-		detected_rect_vector.clear();
+//		cout << "sono nell'else" << endl;
+		_detection_vec.clear();
 	}
 
 	if(show_images)
@@ -217,16 +247,16 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	//! TODO: track _obstacle_pos with a KALMAN FILTER.
 	getRobotPose();
 
-	Eigen::Vector2f temp_meas(msg->mx, msg->my);
-	Eigen::Matrix2f temp_meas_cov;
-	temp_meas_cov.setIdentity();
-	temp_meas_cov(0,0) = 0.7;
+	Eigen::Vector2f new_laser_meas(msg->mx, msg->my);
+	Eigen::Matrix2f new_laser_meas_cov;
+	new_laser_meas_cov.setIdentity();
+	new_laser_meas_cov(0,0) = 0.7;
 //	temp_meas_cov *= powf((float)msg->var,2.0f);
 
-	if(temp_meas.norm() == 0)
+	if(new_laser_meas.norm() == 0)
 	{
-		temp_meas = _prev_meas;
-		temp_meas_cov(0,0) /= 8.0f;
+		new_laser_meas = _prev_laser_meas;
+		new_laser_meas_cov(0,0) /= 8.0f;
 	}
 	else
 		_obstacle->setSeenFlag();
@@ -234,30 +264,30 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 
 	if (_obstacle->getFlag())
 	{
-		_obstacle->setObservation(temp_meas, temp_meas_cov);
+		_obstacle->setObservation(new_laser_meas, new_laser_meas_cov);
 
-		if(_ekf->getHistorySize() == 0)
+		if(_ekf_laser->getHistorySize() == 0)
 		{
 			cout << RED << "init" << RESET << endl;
 			Eigen::Matrix4f temp_1;
 			temp_1.setIdentity();
 			_obstacle->initObs(Eigen::Vector4f(msg->mx, msg->my, 0, 0),temp_1);
 		//	_obstacle->initObs(Eigen::Vector4f(17.0f, 17.0f, 0, 0),temp_1);
-			_ekf->oneStep(_obstacle);
+			_ekf_laser->oneStep(_obstacle);
 		}
 		else
-			_ekf->oneStep(_obstacle);
+			_ekf_laser->oneStep(_obstacle);
 	}
 
 	_obstacle->evaluateDistance();
-	_prev_meas = temp_meas;
+	_prev_laser_meas = new_laser_meas;
 
 	// Print out stuff
 	if (false)
 	{
 		cout << BOLDCYAN 	<< "New State:" 		<< endl; _obstacle->printState();
 		cout << BOLDMAGENTA << "msg          :\t" 	<< msg->mx << " " << msg->my << RESET << endl;
-		cout << BOLDBLUE 	<< "temp_meas    :\t" 	<< temp_meas.x() << " " << temp_meas.y() << RESET<< endl;
+		cout << BOLDBLUE 	<< "temp_meas    :\t" 	<< new_laser_meas.x() << " " << new_laser_meas.y() << RESET<< endl;
 		cout << BOLDYELLOW 	<< "Mean dist[mm]:\t" 	<< _obstacle->getDistance() << RESET << endl;
 		cout << BOLDGREEN 	<< "msg->varaianc:\t" 	<< msg->var << RESET << endl;
 	}
