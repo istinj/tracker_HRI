@@ -69,5 +69,5 @@ xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/both_diago.bag' &
 # xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_robot_move_mirco.bag' &
 # xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_robot_move_maite.bag' &
 # xterm -e 'rosbag play ~/Documenti/0_ROS_Bags/diago_gest_person_move.bag' &
-sleep 1
+sleep 2
 echo " "
