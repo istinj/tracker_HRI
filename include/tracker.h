@@ -13,7 +13,6 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
-#include <laser_analysis/LaserObstacle.h>
 #include <laser_analysis/LaserObstacleMap.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -41,7 +40,6 @@ public:
 	void depthCB(const sensor_msgs::ImageConstPtr& msg);
 	void depthCamInfoCB(const sensor_msgs::CameraInfoConstPtr& msg);
 	void rgbCB(const sensor_msgs::ImageConstPtr& msg);
-	void laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg);
 	void laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg);
 
 	void getRobotPose(void);

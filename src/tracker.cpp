@@ -223,11 +223,6 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	/**/
 }
 
-void Tracker::laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
-{
-	return;
-}
-
 void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 {
 	//! TODO: use variance to cut depth images on the y axis. -> zero

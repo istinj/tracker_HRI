@@ -5,6 +5,7 @@ project(tracker_hri)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
 	OpenCV REQUIRED
+	laser_analysis
 	cv_bridge
 	image_transport
 	roscpp
