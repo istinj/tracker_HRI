@@ -29,6 +29,7 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 	double min, max;
 	float mean_depth = _obstacle->getDistance();
 
+	int roi_prev_size = _roi_vector.size();
 	_roi_vector.clear();
 
 	//! Project the mean point of the obstacle to crop the
@@ -112,13 +113,19 @@ void Tracker::depthCB(const sensor_msgs::ImageConstPtr& msg)
 				{
 					_roi_vector.push_back(bound_rect_vect[i]);
 					cv::rectangle(depth_image, bound_rect_vect[i].tl(), bound_rect_vect[i].br(), CV_RGB(168,25,37), 3, CV_AA, 0);
-					cout << BOLDBLUE << "Human found" << RESET << endl;
 				}
 			}
 		}
 	}
 
-	//! Only for debug
+	// If there is a NEW relevant detection, publish a PNP condition.
+	if(_roi_vector.size() > 0 && roi_prev_size == 0)
+	{
+		cout << BOLDBLUE << "Human found" << RESET << endl;
+		system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once &");
+	}
+
+	//! Only for debug - shows the center of the u-crop through a vertical line.
 	cv::line(depth_image, cv::Point(projected_obs.x(),projected_obs.y()),
 			cv::Point(temp_point.x(),temp_point.y()), cv::Scalar(255,19,19));
 
@@ -136,6 +143,8 @@ void Tracker::depthCamInfoCB(const sensor_msgs::CameraInfoConstPtr& msg)
 	}
 }
 
+
+//! Not used at the moment.
 void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 {
 	bool show_images = true;
@@ -149,6 +158,13 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
 
 	curr_frame_rgb = cv_ptr->image.clone();
+	displayImage(curr_frame_rgb, "RGB Datastream");
+
+	/*
+	// ------------------ RGB Analysis of the ROIs ------------------//
+	//! ------- It is used at this time since neither HOG ---------- //
+	//! ---------------nor HAAR are performing good. --------------- //
+	// ------------------------------------------------------------- //
 	cv::cvtColor(curr_frame_rgb, curr_frame_gray, cv::COLOR_BGR2GRAY);
 	cv::equalizeHist(curr_frame_gray, curr_frame_gray);
 
@@ -204,6 +220,7 @@ void Tracker::rgbCB(const sensor_msgs::ImageConstPtr& msg)
 	}
 	// cerr << "Publishing condition" << endl;
 	// system("rostopic pub /diago/PNPConditionEvent std_msgs/String \"data: \'pDetected\'\" --once");
+	/**/
 }
 
 void Tracker::laserObsCB(const laser_analysis::LaserObstacleConstPtr& msg)
@@ -217,12 +234,17 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 	//! TODO: track _obstacle_pos with a KALMAN FILTER.
 	getRobotPose();
 
-	Eigen::Vector2f temp_meas(msg->mx, msg->my);
+	Eigen::Vector2f temp_meas(msg->mx, msg->my); // obs pos from laser_analysis
 	Eigen::Matrix2f temp_meas_cov;
 	temp_meas_cov.setIdentity();
 	temp_meas_cov(0,0) = 0.7;
 //	temp_meas_cov *= powf((float)msg->var,2.0f);
 
+	//! If the measure is 0 and the previous one was not so,
+	//! set it to the previous one in order to avoid long periods
+	//! of NULL observations. In this way the first time that a
+	//! realistic obstacle is detected the EKF is initialized,
+	//! through the bool _obstacle->flag.
 	if(temp_meas.norm() == 0)
 	{
 		temp_meas = _prev_meas;
@@ -232,13 +254,17 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 		_obstacle->setSeenFlag();
 
 
+	//! If there is an obstacle, set up things for the EKF, otherwise return.
 	if (_obstacle->getFlag())
 	{
 		_obstacle->setObservation(temp_meas, temp_meas_cov);
 
+		//! If it is the first time that this obstacle appears, init
+		//! the EKF with the current observation data, otherwise perform
+		//! one step of the EKF.
 		if(_ekf->getHistorySize() == 0)
 		{
-			cout << RED << "init" << RESET << endl;
+			cout << RED << "Init the EKF for laser data" << RESET << endl;
 			Eigen::Matrix4f temp_1;
 			temp_1.setIdentity();
 			_obstacle->initObs(Eigen::Vector4f(msg->mx, msg->my, 0, 0),temp_1);
@@ -248,12 +274,14 @@ void Tracker::laserObsMapCB(const laser_analysis::LaserObstacleMapConstPtr& msg)
 		else
 			_ekf->oneStep(_obstacle);
 	}
+	else
+		return;
 
 	_obstacle->evaluateDistance();
 	_prev_meas = temp_meas;
 
 	// Print out stuff
-	if (false)
+	if (true)
 	{
 		cout << BOLDCYAN 	<< "New State:" 		<< endl; _obstacle->printState();
 		cout << BOLDMAGENTA << "msg          :\t" 	<< msg->mx << " " << msg->my << RESET << endl;
